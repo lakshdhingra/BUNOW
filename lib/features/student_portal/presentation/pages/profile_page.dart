@@ -1,0 +1,214 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:bennett_campus/core/router/app_routes.dart';
+import 'package:bennett_campus/core/theme/app_colors.dart';
+import 'package:bennett_campus/core/theme/app_radii.dart';
+import 'package:bennett_campus/core/theme/app_spacing.dart';
+import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
+import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
+import 'package:bennett_campus/shared/widgets/widgets.dart';
+
+/// Student profile and account overview placeholder page (Stage 1).
+class ProfilePage extends ConsumerWidget {
+  const ProfilePage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final user = ref.watch(authControllerProvider).user;
+    final registeredCount = ref.watch(registeredEventIdsProvider).length;
+
+    return SingleChildScrollView(
+      child: ResponsiveContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Student Profile', style: theme.textTheme.headlineLarge),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              'Your Bennett University identity and activity summary.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            AppCard(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: AppColors.primary,
+                    child: Text(
+                      user?.initials ?? 'BU',
+                      style: theme.textTheme.headlineSmall,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user?.fullName ?? 'Bennett Student',
+                          style: theme.textTheme.headlineSmall,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          user?.email ?? 'student@bennett.edu.in',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppColors.secondary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${user?.program ?? 'Undergraduate'} · ${user?.batchYear ?? ''}',
+                          style: theme.textTheme.bodySmall,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (DeviceScreenType.of(context) != DeviceScreenType.mobile) ...[
+                    const SizedBox(width: AppSpacing.md),
+                    AppButton(
+                      label: 'Sign out',
+                      variant: AppButtonVariant.outline,
+                      leadingIcon: Icons.logout_rounded,
+                      onPressed: () =>
+                          ref.read(authControllerProvider.notifier).signOut(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (DeviceScreenType.of(context) == DeviceScreenType.mobile) ...[
+              const SizedBox(height: AppSpacing.md),
+              AppButton(
+                label: 'Sign out',
+                variant: AppButtonVariant.outline,
+                leadingIcon: Icons.logout_rounded,
+                fullWidth: true,
+                onPressed: () =>
+                    ref.read(authControllerProvider.notifier).signOut(),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.lg),
+            ResponsiveCardGrid(
+              desktopColumns: 3,
+              tabletColumns: 2,
+              mobileColumns: 1,
+              children: [
+                _ProfileShortcutCard(
+                  icon: Icons.confirmation_number_outlined,
+                  title: 'Registered Events',
+                  value: '$registeredCount active passes',
+                  onTap: () => context.go(AppRoutes.myEvents),
+                ),
+                _ProfileShortcutCard(
+                  icon: Icons.calendar_month_outlined,
+                  title: 'Campus Schedule',
+                  value: 'View chronological calendar',
+                  onTap: () => context.go(AppRoutes.calendar),
+                ),
+                _ProfileShortcutCard(
+                  icon: Icons.auto_awesome_outlined,
+                  title: 'Campus Highlights',
+                  value: 'Browse event galleries',
+                  onTap: () => context.go(AppRoutes.highlights),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppCard(
+              elevated: true,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryMuted,
+                      borderRadius: AppRadii.borderMd,
+                    ),
+                    child: const Icon(
+                      Icons.admin_panel_settings_outlined,
+                      color: AppColors.primaryHover,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Microsoft SSO & Organizer Permissions',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          'Live @bennett.edu.in Microsoft OAuth and server-verified Organizer Studio access will be enabled in upcoming stages.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileShortcutCard extends StatelessWidget {
+  const _ProfileShortcutCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AppCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: AppColors.secondaryMuted,
+              borderRadius: AppRadii.borderMd,
+            ),
+            child: Icon(icon, color: AppColors.secondary, size: 20),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.titleSmall),
+                Text(value, style: theme.textTheme.bodySmall),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textMuted,
+          ),
+        ],
+      ),
+    );
+  }
+}
