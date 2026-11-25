@@ -122,37 +122,69 @@ class ProfilePage extends ConsumerWidget {
             const SizedBox(height: AppSpacing.lg),
             AppCard(
               elevated: true,
-              child: Row(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primaryMuted,
-                      borderRadius: AppRadii.borderMd,
-                    ),
-                    child: const Icon(
-                      Icons.admin_panel_settings_outlined,
-                      color: AppColors.primaryHover,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primaryMuted,
+                          borderRadius: AppRadii.borderMd,
+                        ),
+                        child: const Icon(
+                          Icons.admin_panel_settings_outlined,
+                          color: AppColors.primaryHover,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Organizer Studio & Role Preview',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: AppSpacing.xxs),
+                            Text(
+                              (user?.isOrganizer ?? false)
+                                  ? 'This mock student account is authorized for ${user!.authorizedClubIds.length} clubs. Real authorization will be enforced server-side via Supabase RLS.'
+                                  : 'Standard student mode active. Toggle mock representative access below to preview Organizer Studio authorization states.',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Microsoft SSO & Organizer Permissions',
-                          style: theme.textTheme.titleMedium,
+                  const SizedBox(height: AppSpacing.md),
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      if (user?.isOrganizer ?? false)
+                        AppButton(
+                          label: 'Open Organizer Studio',
+                          size: AppButtonSize.sm,
+                          leadingIcon: Icons.dashboard_customize_outlined,
+                          onPressed: () =>
+                              context.go(AppRoutes.organizerDashboard),
                         ),
-                        const SizedBox(height: AppSpacing.xxs),
-                        Text(
-                          'Live @bennett.edu.in Microsoft OAuth and server-verified Organizer Studio access will be enabled in upcoming stages.',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
+                      AppButton(
+                        label: (user?.isOrganizer ?? false)
+                            ? 'Preview Standard Student View'
+                            : 'Enable Mock Organizer Access',
+                        variant: AppButtonVariant.outline,
+                        size: AppButtonSize.sm,
+                        onPressed: () => ref
+                            .read(authControllerProvider.notifier)
+                            .toggleMockOrganizerAccess(),
+                      ),
+                    ],
                   ),
                 ],
               ),

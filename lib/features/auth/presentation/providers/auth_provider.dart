@@ -44,6 +44,18 @@ class AuthController extends Notifier<AuthState> {
   void signOut() {
     state = const AuthState();
   }
+
+  /// Preview helper to demonstrate authorized vs standard student UI states.
+  void toggleMockOrganizerAccess() {
+    final user = state.user;
+    if (user == null) return;
+    final nextClubs = user.isOrganizer
+        ? const <String>[]
+        : MockCampusData.currentStudent.authorizedClubIds;
+    state = state.copyWith(
+      user: user.copyWith(authorizedClubIds: nextClubs),
+    );
+  }
 }
 
 final authControllerProvider = NotifierProvider<AuthController, AuthState>(

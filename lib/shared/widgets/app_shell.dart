@@ -8,6 +8,7 @@ import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
 import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/student_top_bar.dart';
+import 'package:bennett_campus/shared/widgets/app_button.dart';
 import 'package:bennett_campus/shared/widgets/responsive_layout.dart';
 
 class _NavDestination {
@@ -140,6 +141,8 @@ class _AppShellState extends ConsumerState<AppShell> {
               destinations: _destinations,
               studentName: user?.fullName ?? 'Bennett Student',
               studentEmail: user?.email ?? 'student@bennett.edu.in',
+              showOrganizerEntry: user?.isOrganizer ?? false,
+              onOpenOrganizer: () => context.go(AppRoutes.organizerDashboard),
               onSelect: (index) => _navigateTo(_destinations[index].route),
             ),
             Expanded(child: contentColumn),
@@ -276,6 +279,18 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ),
               ),
               const Divider(),
+              if (ref.watch(authControllerProvider).user?.isOrganizer ?? false)
+                ListTile(
+                  leading: const Icon(
+                    Icons.dashboard_customize_outlined,
+                    color: AppColors.secondary,
+                  ),
+                  title: const Text('Organizer Studio'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    context.go(AppRoutes.organizerDashboard);
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.logout_rounded, color: AppColors.error),
                 title: Text(
@@ -318,6 +333,8 @@ class _DesktopSidebar extends StatelessWidget {
     required this.destinations,
     required this.studentName,
     required this.studentEmail,
+    required this.showOrganizerEntry,
+    required this.onOpenOrganizer,
     required this.onSelect,
   });
 
@@ -325,6 +342,8 @@ class _DesktopSidebar extends StatelessWidget {
   final List<_NavDestination> destinations;
   final String studentName;
   final String studentEmail;
+  final bool showOrganizerEntry;
+  final VoidCallback onOpenOrganizer;
   final ValueChanged<int> onSelect;
 
   @override
@@ -441,31 +460,46 @@ class _DesktopSidebar extends StatelessWidget {
           const Divider(),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: AppRadii.borderMd,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    studentName,
-                    style: theme.textTheme.titleSmall,
-                    overflow: TextOverflow.ellipsis,
+            child: Column(
+              children: [
+                if (showOrganizerEntry) ...[
+                  AppButton(
+                    label: 'Organizer Studio',
+                    size: AppButtonSize.sm,
+                    variant: AppButtonVariant.secondary,
+                    leadingIcon: Icons.dashboard_customize_outlined,
+                    fullWidth: true,
+                    onPressed: onOpenOrganizer,
                   ),
-                  Text(
-                    studentEmail,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.textMuted,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  const SizedBox(height: AppSpacing.sm),
                 ],
-              ),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: AppRadii.borderMd,
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        studentName,
+                        style: theme.textTheme.titleSmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        studentEmail,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],

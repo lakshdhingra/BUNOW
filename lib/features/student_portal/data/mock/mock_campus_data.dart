@@ -11,6 +11,7 @@ abstract final class MockCampusData {
     program: 'B.Tech Computer Science',
     batchYear: 'Batch of 2027',
     initials: 'AS',
+    authorizedClubIds: ['club-csi', 'club-gdg'],
   );
 
   static final List<CampusEvent> events = [

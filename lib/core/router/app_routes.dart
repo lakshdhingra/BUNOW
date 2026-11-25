@@ -14,10 +14,18 @@ abstract final class AppRoutes {
   static const String highlights = '/highlights';
   static const String profile = '/profile';
   static const String studentPortal = home;
-  static const String organizerStudio = '/organizer';
+  static const String organizerStudio = organizerDashboard;
+  static const String organizerRoot = '/organizer';
+  static const String organizerDashboard = '/organizer/dashboard';
+  static const String organizerEvents = '/organizer/events';
+  static const String organizerNewEvent = '/organizer/events/new';
+  static const String organizerEditEventPattern = '/organizer/events/:eventId/edit';
+  static const String organizerRegistrations = '/organizer/registrations';
+  static const String organizerClub = '/organizer/club';
 
   static String eventDetail(String eventId) => '/events/$eventId';
   static String eventRegistration(String eventId) => '/events/$eventId/register';
   static String ticketDetail(String registrationId) => '/tickets/$registrationId';
   static String clubProfile(String clubId) => '/clubs/$clubId';
+  static String organizerEditEvent(String eventId) => '/organizer/events/$eventId/edit';
 }

@@ -4,6 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:bennett_campus/core/router/app_routes.dart';
 import 'package:bennett_campus/features/auth/presentation/pages/login_page.dart';
 import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
+import 'package:bennett_campus/features/organizer_studio/presentation/pages/event_wizard_page.dart';
+import 'package:bennett_campus/features/organizer_studio/presentation/pages/organizer_club_management_page.dart';
+import 'package:bennett_campus/features/organizer_studio/presentation/pages/organizer_dashboard_page.dart';
+import 'package:bennett_campus/features/organizer_studio/presentation/pages/organizer_events_page.dart';
+import 'package:bennett_campus/features/organizer_studio/presentation/pages/organizer_registrations_page.dart';
+import 'package:bennett_campus/features/organizer_studio/presentation/widgets/organizer_shell.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/calendar_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/club_profile_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/clubs_page.dart';
@@ -149,6 +155,64 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'profile',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: ProfilePage(),
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.organizerRoot,
+        redirect: (_, _) => AppRoutes.organizerDashboard,
+      ),
+      ShellRoute(
+        builder: (context, state, child) {
+          return OrganizerShell(
+            currentLocation: state.uri.path,
+            child: child,
+          );
+        },
+        routes: [
+          GoRoute(
+            path: AppRoutes.organizerDashboard,
+            name: 'organizer_dashboard',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: OrganizerDashboardPage(),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.organizerEvents,
+            name: 'organizer_events',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: OrganizerEventsPage(),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.organizerNewEvent,
+            name: 'organizer_new_event',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: EventWizardPage(),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.organizerEditEventPattern,
+            name: 'organizer_edit_event',
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: EventWizardPage(
+                eventId: state.pathParameters['eventId'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.organizerRegistrations,
+            name: 'organizer_registrations',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: OrganizerRegistrationsPage(),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.organizerClub,
+            name: 'organizer_club',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: OrganizerClubManagementPage(),
             ),
           ),
         ],

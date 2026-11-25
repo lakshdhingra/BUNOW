@@ -8,6 +8,7 @@ class StudentUser {
     required this.batchYear,
     required this.initials,
     this.avatarUrl,
+    this.authorizedClubIds = const [],
   });
 
   final String id;
@@ -17,6 +18,22 @@ class StudentUser {
   final String batchYear;
   final String initials;
   final String? avatarUrl;
+  final List<String> authorizedClubIds;
 
   String get firstName => fullName.split(' ').first;
+
+  bool get isOrganizer => authorizedClubIds.isNotEmpty;
+
+  StudentUser copyWith({List<String>? authorizedClubIds}) {
+    return StudentUser(
+      id: id,
+      fullName: fullName,
+      email: email,
+      program: program,
+      batchYear: batchYear,
+      initials: initials,
+      avatarUrl: avatarUrl,
+      authorizedClubIds: authorizedClubIds ?? this.authorizedClubIds,
+    );
+  }
 }
