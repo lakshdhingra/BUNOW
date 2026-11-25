@@ -247,9 +247,16 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                     isRegistered: isRegistered,
                     onTap: () => context.go(AppRoutes.eventDetail(event.id)),
                     onActionTap: () {
-                      ref
-                          .read(registeredEventIdsProvider.notifier)
-                          .toggle(event.id);
+                      final activeReg = ref.read(
+                        activeRegistrationForEventProvider(event.id),
+                      );
+                      if (activeReg != null) {
+                        context.go(AppRoutes.ticketDetail(activeReg.id));
+                      } else if (event.isFull || event.isRegistrationClosed) {
+                        context.go(AppRoutes.eventDetail(event.id));
+                      } else {
+                        context.go(AppRoutes.eventRegistration(event.id));
+                      }
                     },
                   );
                 }).toList(),

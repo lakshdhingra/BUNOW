@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
 import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
+import 'package:bennett_campus/features/student_portal/data/repositories/mock_registration_repository.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
+import 'package:bennett_campus/features/student_portal/domain/models/registration_models.dart';
+import 'package:bennett_campus/features/student_portal/domain/repositories/registration_repository.dart';
 
 class SearchQueryNotifier extends Notifier<String> {
   @override
@@ -54,25 +58,56 @@ class ClubCategoryFilterNotifier extends Notifier<String> {
   void select(String category) => state = category;
 }
 
-class RegisteredEventIdsNotifier extends Notifier<Set<String>> {
+final registrationRepositoryProvider = Provider<RegistrationRepository>((ref) {
+  return MockRegistrationRepository();
+});
+
+/// Manages student registrations via [RegistrationRepository].
+class RegistrationsController extends AsyncNotifier<List<EventRegistration>> {
   @override
-  Set<String> build() {
-    return MockCampusData.events
-        .where((e) => e.isRegistered)
-        .map((e) => e.id)
-        .toSet();
+  Future<List<EventRegistration>> build() async {
+    final user = ref.watch(authControllerProvider).user;
+    if (user == null) return const [];
+    final repository = ref.watch(registrationRepositoryProvider);
+    return repository.fetchStudentRegistrations(user.id);
   }
 
-  void toggle(String eventId) {
-    final next = Set<String>.from(state);
-    if (next.contains(eventId)) {
-      next.remove(eventId);
-    } else {
-      next.add(eventId);
+  Future<EventRegistration> registerForEvent({
+    required CampusEvent event,
+    Map<String, dynamic> answers = const {},
+  }) async {
+    final user = ref.read(authControllerProvider).user;
+    if (user == null) {
+      throw const RegistrationException('Please sign in to register.');
     }
-    state = next;
+
+    final repository = ref.read(registrationRepositoryProvider);
+    final created = await repository.submitRegistration(
+      event: event,
+      student: user,
+      answers: answers,
+    );
+
+    final updatedList = await repository.fetchStudentRegistrations(user.id);
+    state = AsyncData(updatedList);
+    return created;
+  }
+
+  Future<void> cancelRegistration(String registrationId) async {
+    final user = ref.read(authControllerProvider).user;
+    if (user == null) return;
+
+    final repository = ref.read(registrationRepositoryProvider);
+    await repository.cancelRegistration(registrationId: registrationId);
+    final updatedList = await repository.fetchStudentRegistrations(user.id);
+    state = AsyncData(updatedList);
   }
 }
+
+final registrationsControllerProvider =
+    AsyncNotifierProvider<RegistrationsController, List<EventRegistration>>(
+      RegistrationsController.new,
+    );
 
 final searchQueryProvider = NotifierProvider<SearchQueryNotifier, String>(
   SearchQueryNotifier.new,
@@ -109,15 +144,47 @@ final clubCategoryFilterProvider =
       ClubCategoryFilterNotifier.new,
     );
 
-final registeredEventIdsProvider =
-    NotifierProvider<RegisteredEventIdsNotifier, Set<String>>(
-      RegisteredEventIdsNotifier.new,
-    );
+/// Active (confirmed) event IDs for the signed-in student.
+final registeredEventIdsProvider = Provider.autoDispose<Set<String>>((ref) {
+  final registrations = ref.watch(registrationsControllerProvider).value ?? [];
+  return registrations
+      .where((r) => r.status == RegistrationStatus.confirmed)
+      .map((r) => r.eventId)
+      .toSet();
+});
+
+/// Finds the active (confirmed) registration for a given [eventId], if any.
+final activeRegistrationForEventProvider =
+    Provider.autoDispose.family<EventRegistration?, String>((ref, eventId) {
+      final registrations =
+          ref.watch(registrationsControllerProvider).value ?? [];
+      for (final reg in registrations) {
+        if (reg.eventId == eventId &&
+            reg.status == RegistrationStatus.confirmed) {
+          return reg;
+        }
+      }
+      return null;
+    });
+
+/// Finds any registration record by its [registrationId].
+final registrationByIdProvider =
+    Provider.autoDispose.family<EventRegistration?, String>((
+      ref,
+      registrationId,
+    ) {
+      final registrations =
+          ref.watch(registrationsControllerProvider).value ?? [];
+      for (final reg in registrations) {
+        if (reg.id == registrationId) return reg;
+      }
+      return null;
+    });
 
 /// Reference date anchored to the mock dataset timeline for predictable filtering.
 final DateTime _mockReferenceDate = DateTime(2026, 11, 26);
 
-final filteredEventsProvider = Provider<List<CampusEvent>>((ref) {
+final filteredEventsProvider = Provider.autoDispose<List<CampusEvent>>((ref) {
   final query = ref.watch(searchQueryProvider).trim().toLowerCase();
   final category = ref.watch(selectedCategoryProvider);
   final clubId = ref.watch(selectedClubFilterProvider);
@@ -127,6 +194,7 @@ final filteredEventsProvider = Provider<List<CampusEvent>>((ref) {
   final registeredIds = ref.watch(registeredEventIdsProvider);
 
   final results = MockCampusData.events.where((event) {
+    if (event.isCompleted) return false;
     if (category != EventCategory.all && event.category != category) {
       return false;
     }
@@ -146,9 +214,11 @@ final filteredEventsProvider = Provider<List<CampusEvent>>((ref) {
     final isRegistered = registeredIds.contains(event.id);
     final matchesStatus = switch (statusFilter) {
       RegistrationStatusFilter.all => true,
-      RegistrationStatusFilter.open => event.spotsRemaining > 0,
+      RegistrationStatusFilter.open =>
+        !event.isFull && !event.isRegistrationClosed,
       RegistrationStatusFilter.registered => isRegistered,
-      RegistrationStatusFilter.fillingFast => event.isFillingFast,
+      RegistrationStatusFilter.fillingFast =>
+        event.isFillingFast && !event.isRegistrationClosed,
     };
     if (!matchesStatus) return false;
 

@@ -120,9 +120,7 @@ class EventDetailPage extends ConsumerWidget {
                   event: item,
                   isRegistered: itemRegistered,
                   onTap: () => context.go(AppRoutes.eventDetail(item.id)),
-                  onActionTap: () => ref
-                      .read(registeredEventIdsProvider.notifier)
-                      .toggle(item.id),
+                  onActionTap: () => _openRegistrationOrTicket(context, ref, item),
                 );
               }).toList(),
             ),
@@ -137,19 +135,24 @@ class EventDetailPage extends ConsumerWidget {
     WidgetRef ref,
     CampusEvent event,
   ) {
-    final wasRegistered = ref
-        .read(registeredEventIdsProvider)
-        .contains(event.id);
-    ref.read(registeredEventIdsProvider.notifier).toggle(event.id);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          wasRegistered
-              ? 'Removed mock registration for ${event.title}.'
-              : 'Mock pass confirmed for ${event.title}.',
-        ),
-      ),
-    );
+    _openRegistrationOrTicket(context, ref, event);
+  }
+
+  void _openRegistrationOrTicket(
+    BuildContext context,
+    WidgetRef ref,
+    CampusEvent event,
+  ) {
+    final activeReg = ref.read(activeRegistrationForEventProvider(event.id));
+    if (activeReg != null) {
+      context.go(AppRoutes.ticketDetail(activeReg.id));
+      return;
+    }
+    if (event.isFull || event.isRegistrationClosed) {
+      context.go(AppRoutes.eventRegistration(event.id));
+      return;
+    }
+    context.go(AppRoutes.eventRegistration(event.id));
   }
 }
 
@@ -593,10 +596,18 @@ class _RegistrationInfoCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           AppButton(
-            label: isRegistered ? 'Registered · Cancel Mock Pass' : 'Register Now',
+            label: isRegistered
+                ? 'Registered · View Pass'
+                : (event.isCompleted
+                      ? 'Event Completed'
+                      : (event.isRegistrationClosed
+                            ? 'Registration Closed'
+                            : (event.isFull ? 'Event Full' : 'Register Now'))),
             variant: isRegistered
                 ? AppButtonVariant.secondary
-                : AppButtonVariant.primary,
+                : (event.isCompleted || event.isRegistrationClosed || event.isFull
+                      ? AppButtonVariant.outline
+                      : AppButtonVariant.primary),
             leadingIcon: isRegistered
                 ? Icons.check_circle_outline_rounded
                 : Icons.confirmation_number_outlined,

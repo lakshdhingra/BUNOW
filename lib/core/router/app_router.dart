@@ -8,11 +8,13 @@ import 'package:bennett_campus/features/student_portal/presentation/pages/calend
 import 'package:bennett_campus/features/student_portal/presentation/pages/club_profile_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/clubs_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/event_detail_page.dart';
+import 'package:bennett_campus/features/student_portal/presentation/pages/event_registration_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/explore_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/highlights_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/home_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/my_events_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/profile_page.dart';
+import 'package:bennett_campus/features/student_portal/presentation/pages/registration_ticket_page.dart';
 import 'package:bennett_campus/shared/widgets/app_error_widget.dart';
 import 'package:bennett_campus/shared/widgets/app_shell.dart';
 
@@ -83,6 +85,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) => NoTransitionPage(
               child: EventDetailPage(
                 eventId: state.pathParameters['eventId'] ?? '',
+              ),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.eventRegistrationPattern,
+            name: 'event_registration',
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: EventRegistrationPage(
+                eventId: state.pathParameters['eventId'] ?? '',
+              ),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.ticketDetailPattern,
+            name: 'ticket_detail',
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: RegistrationTicketPage(
+                registrationId: state.pathParameters['registrationId'] ?? '',
+                justConfirmed: state.uri.queryParameters['confirmed'] == 'true',
               ),
             ),
           ),

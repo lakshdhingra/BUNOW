@@ -183,18 +183,17 @@ class HomePage extends ConsumerWidget {
     WidgetRef ref,
     CampusEvent event,
   ) {
-    final wasRegistered = ref
-        .read(registeredEventIdsProvider)
-        .contains(event.id);
-    ref.read(registeredEventIdsProvider.notifier).toggle(event.id);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          wasRegistered
-              ? 'Removed mock pass for ${event.title}.'
-              : 'Mock pass reserved for ${event.title}.',
-        ),
-      ),
+    final activeRegistration = ref.read(
+      activeRegistrationForEventProvider(event.id),
     );
+    if (activeRegistration != null) {
+      context.go(AppRoutes.ticketDetail(activeRegistration.id));
+      return;
+    }
+    if (event.isFull || event.isRegistrationClosed) {
+      context.go(AppRoutes.eventDetail(event.id));
+      return;
+    }
+    context.go(AppRoutes.eventRegistration(event.id));
   }
 }

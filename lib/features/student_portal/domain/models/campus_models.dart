@@ -1,3 +1,5 @@
+import 'package:bennett_campus/features/student_portal/domain/models/registration_models.dart';
+
 /// Event categories across Bennett University clubs and chapters.
 enum EventCategory {
   all('All'),
@@ -167,6 +169,10 @@ class CampusEvent {
     required this.capacity,
     required this.teamSizeLabel,
     required this.feeLabel,
+    this.registrationMode = RegistrationMode.basic,
+    this.registrationQuestions = const [],
+    this.isRegistrationClosed = false,
+    this.isCompleted = false,
     this.isFeatured = false,
     this.isRegistered = false,
     this.tags = const [],
@@ -192,6 +198,10 @@ class CampusEvent {
   final int capacity;
   final String teamSizeLabel;
   final String feeLabel;
+  final RegistrationMode registrationMode;
+  final List<RegistrationQuestion> registrationQuestions;
+  final bool isRegistrationClosed;
+  final bool isCompleted;
   final bool isFeatured;
   final bool isRegistered;
   final List<String> tags;
@@ -200,6 +210,8 @@ class CampusEvent {
   final List<MediaItem> mediaGallery;
 
   int get spotsRemaining => (capacity - registeredCount).clamp(0, capacity);
+
+  bool get isFull => spotsRemaining <= 0;
 
   double get fillRatio => capacity == 0 ? 0 : (registeredCount / capacity).clamp(0, 1);
 

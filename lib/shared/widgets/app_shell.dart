@@ -98,6 +98,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     if (widget.currentLocation.startsWith('/events/')) {
       return 1;
     }
+    if (widget.currentLocation.startsWith('/tickets/')) {
+      return 3;
+    }
     final index = _destinations.indexWhere(
       (item) => widget.currentLocation.startsWith(item.route),
     );

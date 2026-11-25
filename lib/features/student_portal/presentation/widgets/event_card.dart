@@ -62,6 +62,26 @@ class EventCard extends StatelessWidget {
                     backgroundColor: AppColors.success.withValues(alpha: 0.9),
                     textColor: AppColors.background,
                   ),
+                )
+              else if (event.isRegistrationClosed)
+                Positioned(
+                  top: AppSpacing.sm,
+                  right: AppSpacing.sm,
+                  child: _EventPill(
+                    label: 'Closed',
+                    backgroundColor: AppColors.warning.withValues(alpha: 0.9),
+                    textColor: AppColors.background,
+                  ),
+                )
+              else if (event.isFull)
+                Positioned(
+                  top: AppSpacing.sm,
+                  right: AppSpacing.sm,
+                  child: _EventPill(
+                    label: 'Full',
+                    backgroundColor: AppColors.error.withValues(alpha: 0.9),
+                    textColor: AppColors.textPrimary,
+                  ),
                 ),
             ],
           ),
@@ -120,7 +140,11 @@ class EventCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        '${event.spotsRemaining} spots left',
+                        event.isRegistrationClosed
+                            ? 'Registration closed'
+                            : (event.isFull
+                                  ? 'Event full'
+                                  : '${event.spotsRemaining} spots left'),
                         style: theme.textTheme.labelMedium?.copyWith(
                           color: AppColors.textMuted,
                         ),
@@ -139,7 +163,13 @@ class EventCard extends StatelessWidget {
                         ),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      child: Text(isRegistered ? 'View Pass' : 'Register'),
+                      child: Text(
+                        isRegistered
+                            ? 'View Pass'
+                            : (event.isRegistrationClosed || event.isFull
+                                  ? 'Details'
+                                  : 'Register'),
+                      ),
                     ),
                   ],
                 ),
