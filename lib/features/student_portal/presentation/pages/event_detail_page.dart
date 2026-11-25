@@ -478,15 +478,106 @@ class _EventMainColumn extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
         ],
-        if (event.mediaGallery.isNotEmpty)
+        if (event.promoVideos.isNotEmpty) ...[
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Media Gallery', style: theme.textTheme.headlineSmall),
+                Text(
+                  'Promotional Video',
+                  style: theme.textTheme.headlineSmall,
+                ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Photos from previous editions and club sessions',
+                  'Official event teaser & preview embed',
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ...event.promoVideos.map((video) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: InkWell(
+                      onTap: () => showVideoEmbedDialog(context, video),
+                      borderRadius: AppRadii.borderMd,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CampusNetworkImage(
+                            imageUrl: video.thumbnailUrl ?? video.url,
+                            height: 210,
+                            width: double.infinity,
+                            borderRadius: AppRadii.borderMd,
+                          ),
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: AppColors.background.withValues(
+                                  alpha: 0.45,
+                                ),
+                                borderRadius: AppRadii.borderMd,
+                              ),
+                            ),
+                          ),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.secondary,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: AppColors.textPrimary,
+                                  size: 32,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.md,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.background.withValues(
+                                    alpha: 0.85,
+                                  ),
+                                  borderRadius: AppRadii.borderPill,
+                                ),
+                                child: Text(
+                                  '${video.caption} · ${video.durationLabel ?? '01:30'}',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+        if (event.mediaGallery.isNotEmpty) ...[
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Event Photo Gallery', style: theme.textTheme.headlineSmall),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Curated photos from previous editions and club sessions',
                   style: theme.textTheme.bodySmall,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -494,30 +585,116 @@ class _EventMainColumn extends StatelessWidget {
                   desktopColumns: 2,
                   tabletColumns: 2,
                   mobileColumns: 1,
-                  children: event.mediaGallery.map((media) {
-                    return InkWell(
-                      onTap: () => showMediaPreviewDialog(context, media),
-                      borderRadius: AppRadii.borderMd,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CampusNetworkImage(
-                            imageUrl: media.url,
-                            height: 168,
-                            width: double.infinity,
-                            borderRadius: AppRadii.borderMd,
+                  children: ([...event.mediaGallery]
+                        ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex)))
+                      .map((media) {
+                        return InkWell(
+                          onTap: () => showMediaPreviewDialog(
+                            context,
+                            media,
+                            gallery: event.mediaGallery,
                           ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            media.caption,
-                            style: theme.textTheme.bodySmall,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                          borderRadius: AppRadii.borderMd,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CampusNetworkImage(
+                                imageUrl: media.url,
+                                height: 168,
+                                width: double.infinity,
+                                borderRadius: AppRadii.borderMd,
+                              ),
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                media.caption,
+                                style: theme.textTheme.bodySmall,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                        );
+                      })
+                      .toList(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+        if (event.recapMedia.isNotEmpty)
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Event Recap Media', style: theme.textTheme.headlineSmall),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Aftermovie reels and highlight moments',
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ResponsiveCardGrid(
+                  desktopColumns: 2,
+                  tabletColumns: 2,
+                  mobileColumns: 1,
+                  children: ([...event.recapMedia]
+                        ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex)))
+                      .map((media) {
+                        final isVideo = media.kind == MediaKind.video;
+                        return InkWell(
+                          onTap: () => isVideo
+                              ? showVideoEmbedDialog(context, media)
+                              : showMediaPreviewDialog(
+                                  context,
+                                  media,
+                                  gallery: event.recapMedia,
+                                ),
+                          borderRadius: AppRadii.borderMd,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  CampusNetworkImage(
+                                    imageUrl: media.thumbnailUrl ?? media.url,
+                                    height: 168,
+                                    width: double.infinity,
+                                    borderRadius: AppRadii.borderMd,
+                                  ),
+                                  if (isVideo)
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.background.withValues(
+                                          alpha: 0.85,
+                                        ),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: AppColors.secondary,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.play_arrow_rounded,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                media.caption,
+                                style: theme.textTheme.bodySmall,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        );
+                      })
+                      .toList(),
                 ),
               ],
             ),

@@ -5,6 +5,7 @@ import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
 import 'package:bennett_campus/features/organizer_studio/domain/models/organizer_models.dart';
 import 'package:bennett_campus/features/organizer_studio/presentation/providers/organizer_providers.dart';
+import 'package:bennett_campus/features/organizer_studio/presentation/widgets/media_manager_widget.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/shared/widgets/widgets.dart';
 
@@ -337,6 +338,15 @@ class _OrganizerClubManagementPageState
             ),
             const SizedBox(height: AppSpacing.xl),
             AppCard(
+              child: MediaManagerWidget(
+                title: 'Club Media Library & Ordering',
+                items: activeClub.photos,
+                onChanged: (updatedPhotos) =>
+                    _updateClubMedia(activeClub, updatedPhotos),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            AppCard(
               elevated: true,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,6 +418,31 @@ class _OrganizerClubManagementPageState
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Updated profile for ${updated.name}.')),
     );
+  }
+
+  Future<void> _updateClubMedia(
+    CampusClub club,
+    List<MediaItem> updatedPhotos,
+  ) async {
+    final updated = CampusClub(
+      id: club.id,
+      name: club.name,
+      shortCode: club.shortCode,
+      category: club.category,
+      tagline: club.tagline,
+      about: club.about,
+      memberCount: club.memberCount,
+      upcomingEventCount: club.upcomingEventCount,
+      coverUrl: club.coverUrl,
+      logoUrl: club.logoUrl,
+      isVerified: club.isVerified,
+      socialLinks: club.socialLinks,
+      leadership: club.leadership,
+      previousEvents: club.previousEvents,
+      photos: updatedPhotos,
+      videos: club.videos,
+    );
+    await ref.read(authorizedClubsProvider.notifier).updateClub(updated);
   }
 
   Future<void> _openAddRepDialog(BuildContext context) async {

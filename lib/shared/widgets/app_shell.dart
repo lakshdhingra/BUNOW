@@ -88,6 +88,12 @@ class _AppShellState extends ConsumerState<AppShell> {
       selectedIcon: Icons.auto_awesome_rounded,
     ),
     _NavDestination(
+      label: 'Notifications',
+      route: AppRoutes.notifications,
+      icon: Icons.notifications_none_rounded,
+      selectedIcon: Icons.notifications_rounded,
+    ),
+    _NavDestination(
       label: 'Profile',
       route: AppRoutes.profile,
       icon: Icons.person_outline_rounded,

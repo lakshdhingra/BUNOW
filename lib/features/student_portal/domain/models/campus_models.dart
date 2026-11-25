@@ -74,17 +74,68 @@ class EventSpeaker {
   final String initials;
 }
 
+/// Type of media asset.
+enum MediaKind {
+  photo('Photo'),
+  video('Video');
+
+  const MediaKind(this.label);
+  final String label;
+}
+
+/// Editorial placement of media within events and club libraries.
+enum MediaSection {
+  gallery('Photo Gallery'),
+  promo('Promotional'),
+  recap('Event Recap');
+
+  const MediaSection(this.label);
+  final String label;
+}
+
 /// Photo or video media item for events and club profiles.
 class MediaItem {
   const MediaItem({
     required this.id,
     required this.url,
     required this.caption,
+    this.kind = MediaKind.photo,
+    this.section = MediaSection.gallery,
+    this.orderIndex = 0,
+    this.thumbnailUrl,
+    this.durationLabel,
   });
 
   final String id;
   final String url;
   final String caption;
+  final MediaKind kind;
+  final MediaSection section;
+  final int orderIndex;
+  final String? thumbnailUrl;
+  final String? durationLabel;
+
+  MediaItem copyWith({
+    String? id,
+    String? url,
+    String? caption,
+    MediaKind? kind,
+    MediaSection? section,
+    int? orderIndex,
+    String? thumbnailUrl,
+    String? durationLabel,
+  }) {
+    return MediaItem(
+      id: id ?? this.id,
+      url: url ?? this.url,
+      caption: caption ?? this.caption,
+      kind: kind ?? this.kind,
+      section: section ?? this.section,
+      orderIndex: orderIndex ?? this.orderIndex,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      durationLabel: durationLabel ?? this.durationLabel,
+    );
+  }
 }
 
 /// Social media or external link for a campus club.
@@ -179,6 +230,8 @@ class CampusEvent {
     this.agenda = const [],
     this.speakers = const [],
     this.mediaGallery = const [],
+    this.promoVideos = const [],
+    this.recapMedia = const [],
   });
 
   final String id;
@@ -208,6 +261,8 @@ class CampusEvent {
   final List<EventAgendaItem> agenda;
   final List<EventSpeaker> speakers;
   final List<MediaItem> mediaGallery;
+  final List<MediaItem> promoVideos;
+  final List<MediaItem> recapMedia;
 
   int get spotsRemaining => (capacity - registeredCount).clamp(0, capacity);
 
@@ -278,6 +333,19 @@ class CampusHighlight {
   final String summary;
 }
 
+/// Categories for campus notification center filtering.
+enum NotificationType {
+  newEventPublished('New Event'),
+  registrationConfirmation('Confirmation'),
+  eventReminder('Event Reminder'),
+  eventChanges('Event Update'),
+  deadlineReminder('Deadline'),
+  clubAnnouncement('Announcement');
+
+  const NotificationType(this.label);
+  final String label;
+}
+
 /// UI model for campus notifications.
 class CampusNotification {
   const CampusNotification({
@@ -285,12 +353,34 @@ class CampusNotification {
     required this.title,
     required this.body,
     required this.timeAgo,
+    required this.type,
     this.isUnread = false,
+    this.eventId,
+    this.clubId,
+    this.registrationId,
   });
 
   final String id;
   final String title;
   final String body;
   final String timeAgo;
+  final NotificationType type;
   final bool isUnread;
+  final String? eventId;
+  final String? clubId;
+  final String? registrationId;
+
+  CampusNotification copyWith({bool? isUnread}) {
+    return CampusNotification(
+      id: id,
+      title: title,
+      body: body,
+      timeAgo: timeAgo,
+      type: type,
+      isUnread: isUnread ?? this.isUnread,
+      eventId: eventId,
+      clubId: clubId,
+      registrationId: registrationId,
+    );
+  }
 }

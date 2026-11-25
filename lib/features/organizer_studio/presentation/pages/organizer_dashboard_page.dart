@@ -6,6 +6,7 @@ import 'package:bennett_campus/core/router/app_routes.dart';
 import 'package:bennett_campus/core/theme/app_colors.dart';
 import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
+import 'package:bennett_campus/features/organizer_studio/domain/models/attendance_models.dart';
 import 'package:bennett_campus/features/organizer_studio/domain/models/organizer_models.dart';
 import 'package:bennett_campus/features/organizer_studio/presentation/providers/organizer_providers.dart';
 import 'package:bennett_campus/shared/widgets/widgets.dart';
@@ -21,6 +22,10 @@ class OrganizerDashboardPage extends ConsumerWidget {
     final eventsAsync = ref.watch(organizerEventsControllerProvider);
     final registrationsAsync = ref.watch(organizerClubRegistrationsProvider);
     final activityAsync = ref.watch(organizerRecentActivityProvider);
+    final trendsAsync = ref.watch(organizerRegistrationTrendsProvider);
+    final participationAsync = ref.watch(
+      organizerParticipationSummariesProvider,
+    );
     final isDesktop = DeviceScreenType.of(context) == DeviceScreenType.desktop;
 
     return SingleChildScrollView(
@@ -141,6 +146,33 @@ class OrganizerDashboardPage extends ConsumerWidget {
                       _RegistrationAnalyticsCard(events: publishedEvents),
                       const SizedBox(height: AppSpacing.lg),
                       _RecentActivityCard(activityAsync: activityAsync),
+                    ],
+                    const SizedBox(height: AppSpacing.xl),
+                    if (isDesktop)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 5,
+                            child: _RegistrationTrendsCard(
+                              trendsAsync: trendsAsync,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.lg),
+                          Expanded(
+                            flex: 7,
+                            child: _ParticipationSummariesCard(
+                              summariesAsync: participationAsync,
+                            ),
+                          ),
+                        ],
+                      )
+                    else ...[
+                      _RegistrationTrendsCard(trendsAsync: trendsAsync),
+                      const SizedBox(height: AppSpacing.lg),
+                      _ParticipationSummariesCard(
+                        summariesAsync: participationAsync,
+                      ),
                     ],
                     const SizedBox(height: AppSpacing.xl),
                     AppCard(
@@ -466,6 +498,208 @@ class _RecentActivityCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+class _RegistrationTrendsCard extends StatelessWidget {
+  const _RegistrationTrendsCard({required this.trendsAsync});
+
+  final AsyncValue<List<RegistrationTrendPoint>> trendsAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Registration Trends', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 2),
+          Text(
+            'Daily registrations over the past 7 days',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          trendsAsync.when(
+            loading: () => const AppLoadingIndicator(centered: false),
+            error: (e, _) => Text(e.toString(), style: theme.textTheme.bodySmall),
+            data: (points) {
+              if (points.isEmpty) {
+                return Text(
+                  'No trend data available yet.',
+                  style: theme.textTheme.bodyMedium,
+                );
+              }
+              final maxCount = points
+                  .map((p) => p.count)
+                  .reduce((a, b) => a > b ? a : b)
+                  .clamp(1, 99999);
+
+              return SizedBox(
+                height: 164,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: points.map((point) {
+                    final ratio = point.count / maxCount;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${point.count}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: AppColors.secondary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              height: 100 * ratio + 8,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(AppRadii.xs),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              point.dayLabel,
+                              style: theme.textTheme.labelSmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ParticipationSummariesCard extends StatelessWidget {
+  const _ParticipationSummariesCard({required this.summariesAsync});
+
+  final AsyncValue<List<EventParticipationSummary>> summariesAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Event Participation Summaries',
+            style: theme.textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Registrations, attendance numbers, and check-in conversion rates',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          summariesAsync.when(
+            loading: () => const AppLoadingIndicator(centered: false),
+            error: (e, _) => Text(e.toString(), style: theme.textTheme.bodySmall),
+            data: (summaries) {
+              if (summaries.isEmpty) {
+                return Text(
+                  'No events found for participation summary.',
+                  style: theme.textTheme.bodyMedium,
+                );
+              }
+              return Column(
+                children: summaries.map((item) {
+                  final attendancePercent = (item.attendanceRate * 100).round();
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    padding: const EdgeInsets.all(AppSpacing.sm + 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: AppRadii.borderMd,
+                      border: Border.all(color: AppColors.borderSubtle),
+                    ),
+                    child: Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.xs,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 260),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.eventTitle,
+                                style: theme.textTheme.titleSmall,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                item.registrationMode.label,
+                                style: theme.textTheme.labelSmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Wrap(
+                          spacing: AppSpacing.md,
+                          children: [
+                            _MetricBadge(
+                              label: 'Reg',
+                              value: '${item.registeredCount}/${item.capacity}',
+                            ),
+                            _MetricBadge(
+                              label: 'Attended',
+                              value: '${item.checkedInCount} ($attendancePercent%)',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricBadge extends StatelessWidget {
+  const _MetricBadge({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(label, style: theme.textTheme.labelSmall),
+        Text(
+          value,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: AppColors.secondary,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -96,6 +96,7 @@ class OrganizerEventRecord {
     required this.registrationMode,
     required this.registrationQuestions,
     required this.mediaUrls,
+    this.mediaItems = const [],
     required this.updatedAt,
   });
 
@@ -119,6 +120,7 @@ class OrganizerEventRecord {
   final RegistrationMode registrationMode;
   final List<RegistrationQuestion> registrationQuestions;
   final List<String> mediaUrls;
+  final List<MediaItem> mediaItems;
   final DateTime updatedAt;
 
   double get fillRatio =>
@@ -145,6 +147,7 @@ class OrganizerEventRecord {
     RegistrationMode? registrationMode,
     List<RegistrationQuestion>? registrationQuestions,
     List<String>? mediaUrls,
+    List<MediaItem>? mediaItems,
     DateTime? updatedAt,
   }) {
     return OrganizerEventRecord(
@@ -169,6 +172,7 @@ class OrganizerEventRecord {
       registrationQuestions:
           registrationQuestions ?? this.registrationQuestions,
       mediaUrls: mediaUrls ?? this.mediaUrls,
+      mediaItems: mediaItems ?? this.mediaItems,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }

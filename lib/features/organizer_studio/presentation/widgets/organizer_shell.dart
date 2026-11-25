@@ -72,6 +72,12 @@ class _OrganizerShellState extends ConsumerState<OrganizerShell> {
       selectedIcon: Icons.people_alt_rounded,
     ),
     _OrganizerDestination(
+      label: 'Attendance',
+      route: AppRoutes.organizerAttendance,
+      icon: Icons.qr_code_scanner_rounded,
+      selectedIcon: Icons.qr_code_scanner_rounded,
+    ),
+    _OrganizerDestination(
       label: 'Club Settings',
       route: AppRoutes.organizerClub,
       icon: Icons.shield_outlined,

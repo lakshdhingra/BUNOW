@@ -12,6 +12,7 @@ abstract final class AppRoutes {
   static const String clubs = '/clubs';
   static const String clubProfilePattern = '/clubs/:clubId';
   static const String highlights = '/highlights';
+  static const String notifications = '/notifications';
   static const String profile = '/profile';
   static const String studentPortal = home;
   static const String organizerStudio = organizerDashboard;
@@ -21,6 +22,7 @@ abstract final class AppRoutes {
   static const String organizerNewEvent = '/organizer/events/new';
   static const String organizerEditEventPattern = '/organizer/events/:eventId/edit';
   static const String organizerRegistrations = '/organizer/registrations';
+  static const String organizerAttendance = '/organizer/attendance';
   static const String organizerClub = '/organizer/club';
 
   static String eventDetail(String eventId) => '/events/$eventId';

@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
+import 'package:bennett_campus/features/organizer_studio/data/repositories/mock_attendance_repository.dart';
 import 'package:bennett_campus/features/organizer_studio/data/repositories/mock_organizer_repository.dart';
+import 'package:bennett_campus/features/organizer_studio/domain/models/attendance_models.dart';
 import 'package:bennett_campus/features/organizer_studio/domain/models/organizer_models.dart';
+import 'package:bennett_campus/features/organizer_studio/domain/repositories/attendance_repository.dart';
 import 'package:bennett_campus/features/organizer_studio/domain/repositories/organizer_repository.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/registration_models.dart';
@@ -207,3 +210,104 @@ final registrationEventFilterProvider =
     NotifierProvider<RegistrationEventFilterNotifier, String?>(
       RegistrationEventFilterNotifier.new,
     );
+
+final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
+  return MockAttendanceRepository();
+});
+
+class AttendanceEventSelectionNotifier extends Notifier<String?> {
+  @override
+  String? build() {
+    final events = ref.watch(organizerEventsControllerProvider).value ?? const [];
+    if (events.isEmpty) return null;
+    final published = events.where(
+      (e) => e.status == OrganizerEventStatus.published,
+    );
+    return (published.isNotEmpty ? published.first : events.first).id;
+  }
+
+  void select(String eventId) => state = eventId;
+}
+
+final selectedAttendanceEventIdProvider =
+    NotifierProvider<AttendanceEventSelectionNotifier, String?>(
+      AttendanceEventSelectionNotifier.new,
+    );
+
+class EventAttendanceController
+    extends AsyncNotifier<List<AttendanceCheckInRecord>> {
+  @override
+  Future<List<AttendanceCheckInRecord>> build() async {
+    final eventId = ref.watch(selectedAttendanceEventIdProvider);
+    if (eventId == null) return const [];
+    return ref.read(attendanceRepositoryProvider).fetchEventAttendance(eventId);
+  }
+
+  Future<AttendanceCheckInRecord> checkInByTicketCode(String ticketCode) async {
+    final eventId = ref.read(selectedAttendanceEventIdProvider);
+    if (eventId == null) {
+      throw const CheckInException('Select an event first.');
+    }
+    final checkedInBy =
+        ref.read(authControllerProvider).user?.fullName ?? 'Organizer';
+    final record = await ref
+        .read(attendanceRepositoryProvider)
+        .checkInByTicketCode(
+          eventId: eventId,
+          ticketCode: ticketCode,
+          checkedInBy: checkedInBy,
+        );
+    final updated = await ref
+        .read(attendanceRepositoryProvider)
+        .fetchEventAttendance(eventId);
+    state = AsyncData(updated);
+    return record;
+  }
+
+  Future<AttendanceCheckInRecord> checkInManually(String registrationId) async {
+    final eventId = ref.read(selectedAttendanceEventIdProvider);
+    if (eventId == null) {
+      throw const CheckInException('Select an event first.');
+    }
+    final checkedInBy =
+        ref.read(authControllerProvider).user?.fullName ?? 'Organizer';
+    final record = await ref
+        .read(attendanceRepositoryProvider)
+        .checkInManually(
+          eventId: eventId,
+          registrationId: registrationId,
+          checkedInBy: checkedInBy,
+        );
+    final updated = await ref
+        .read(attendanceRepositoryProvider)
+        .fetchEventAttendance(eventId);
+    state = AsyncData(updated);
+    return record;
+  }
+}
+
+final eventAttendanceControllerProvider =
+    AsyncNotifierProvider<
+      EventAttendanceController,
+      List<AttendanceCheckInRecord>
+    >(EventAttendanceController.new);
+
+final organizerRegistrationTrendsProvider =
+    FutureProvider.autoDispose<List<RegistrationTrendPoint>>((ref) async {
+      final clubId = ref.watch(selectedOrganizerClubIdProvider);
+      if (clubId == null) return const [];
+      return ref
+          .read(attendanceRepositoryProvider)
+          .fetchRegistrationTrends(clubId);
+    });
+
+final organizerParticipationSummariesProvider =
+    FutureProvider.autoDispose<List<EventParticipationSummary>>((ref) async {
+      final clubId = ref.watch(selectedOrganizerClubIdProvider);
+      final events =
+          ref.watch(organizerEventsControllerProvider).value ?? const [];
+      if (clubId == null) return const [];
+      return ref
+          .read(attendanceRepositoryProvider)
+          .fetchParticipationSummaries(clubId: clubId, events: events);
+    });

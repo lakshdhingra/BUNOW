@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
 import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
+import 'package:bennett_campus/features/student_portal/data/repositories/mock_notification_repository.dart';
 import 'package:bennett_campus/features/student_portal/data/repositories/mock_registration_repository.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/registration_models.dart';
+import 'package:bennett_campus/features/student_portal/domain/repositories/notification_repository.dart';
 import 'package:bennett_campus/features/student_portal/domain/repositories/registration_repository.dart';
 
 class SearchQueryNotifier extends Notifier<String> {
@@ -62,6 +64,61 @@ final registrationRepositoryProvider = Provider<RegistrationRepository>((ref) {
   return MockRegistrationRepository();
 });
 
+final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+  return MockNotificationRepository();
+});
+
+class NotificationsController extends AsyncNotifier<List<CampusNotification>> {
+  @override
+  Future<List<CampusNotification>> build() async {
+    return ref.read(notificationRepositoryProvider).fetchNotifications();
+  }
+
+  Future<void> markAsRead(String id) async {
+    await ref.read(notificationRepositoryProvider).markAsRead(id);
+    final next = await ref
+        .read(notificationRepositoryProvider)
+        .fetchNotifications();
+    state = AsyncData(next);
+  }
+
+  Future<void> markAsUnread(String id) async {
+    await ref.read(notificationRepositoryProvider).markAsUnread(id);
+    final next = await ref
+        .read(notificationRepositoryProvider)
+        .fetchNotifications();
+    state = AsyncData(next);
+  }
+
+  Future<void> markAllAsRead() async {
+    await ref.read(notificationRepositoryProvider).markAllAsRead();
+    final next = await ref
+        .read(notificationRepositoryProvider)
+        .fetchNotifications();
+    state = AsyncData(next);
+  }
+
+  Future<void> addNotification(CampusNotification notification) async {
+    await ref
+        .read(notificationRepositoryProvider)
+        .addNotification(notification);
+    final next = await ref
+        .read(notificationRepositoryProvider)
+        .fetchNotifications();
+    state = AsyncData(next);
+  }
+}
+
+final notificationsControllerProvider =
+    AsyncNotifierProvider<NotificationsController, List<CampusNotification>>(
+      NotificationsController.new,
+    );
+
+final unreadNotificationsCountProvider = Provider.autoDispose<int>((ref) {
+  final list = ref.watch(notificationsControllerProvider).value ?? const [];
+  return list.where((n) => n.isUnread).length;
+});
+
 /// Manages student registrations via [RegistrationRepository].
 class RegistrationsController extends AsyncNotifier<List<EventRegistration>> {
   @override
@@ -90,6 +147,22 @@ class RegistrationsController extends AsyncNotifier<List<EventRegistration>> {
 
     final updatedList = await repository.fetchStudentRegistrations(user.id);
     state = AsyncData(updatedList);
+
+    await ref
+        .read(notificationsControllerProvider.notifier)
+        .addNotification(
+          CampusNotification(
+            id: 'notif-${DateTime.now().microsecondsSinceEpoch}',
+            title: 'Registration Confirmed: ${event.title}',
+            body: 'Ticket ${created.ticketCode} is ready in My Events.',
+            timeAgo: 'Just now',
+            type: NotificationType.registrationConfirmation,
+            isUnread: true,
+            eventId: event.id,
+            registrationId: created.id,
+          ),
+        );
+
     return created;
   }
 

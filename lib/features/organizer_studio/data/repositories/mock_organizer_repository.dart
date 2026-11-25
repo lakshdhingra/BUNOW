@@ -42,6 +42,11 @@ class MockOrganizerRepository implements OrganizerRepository {
         registrationMode: event.registrationMode,
         registrationQuestions: event.registrationQuestions,
         mediaUrls: event.mediaGallery.map((m) => m.url).toList(),
+        mediaItems: [
+          ...event.mediaGallery,
+          ...event.promoVideos,
+          ...event.recapMedia,
+        ],
         updatedAt: event.publishedAt,
       );
     }).toList();

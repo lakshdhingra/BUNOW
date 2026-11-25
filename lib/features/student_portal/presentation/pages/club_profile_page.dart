@@ -9,6 +9,7 @@ import 'package:bennett_campus/core/utils/external_links.dart';
 import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
+import 'package:bennett_campus/features/student_portal/presentation/widgets/category_chip.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/event_card.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/media_preview_dialog.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/section_header.dart';
@@ -156,142 +157,7 @@ class ClubProfilePage extends ConsumerWidget {
                 }).toList(),
               ),
             const SizedBox(height: AppSpacing.xxl),
-            const SectionHeader(
-              title: 'Photographs',
-              subtitle: 'Highlights captured during club events',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (club.photos.isEmpty)
-              AppCard(
-                child: Text(
-                  'No photographs published yet for this club.',
-                  style: theme.textTheme.bodyMedium,
-                ),
-              )
-            else
-              ResponsiveCardGrid(
-                children: club.photos.map((photo) {
-                  return AppCard(
-                    padding: EdgeInsets.zero,
-                    onTap: () => showMediaPreviewDialog(context, photo),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CampusNetworkImage(
-                          imageUrl: photo.url,
-                          height: 172,
-                          width: double.infinity,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(AppRadii.lg - 1),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          child: Text(
-                            photo.caption,
-                            style: theme.textTheme.bodySmall,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            const SizedBox(height: AppSpacing.xxl),
-            const SectionHeader(
-              title: 'Videos',
-              subtitle: 'Aftermovies, demos, and session recordings',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (club.videos.isEmpty)
-              AppCard(
-                child: Text(
-                  'No video highlights uploaded yet for this club.',
-                  style: theme.textTheme.bodyMedium,
-                ),
-              )
-            else
-              ResponsiveCardGrid(
-                children: club.videos.map((video) {
-                  return AppCard(
-                    padding: EdgeInsets.zero,
-                    onTap: () => launchExternalUrl(
-                      context,
-                      video.videoUrl,
-                      label: video.title,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            CampusNetworkImage(
-                              imageUrl: video.thumbnailUrl,
-                              height: 164,
-                              width: double.infinity,
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(AppRadii.lg - 1),
-                              ),
-                            ),
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: AppColors.background.withValues(
-                                  alpha: 0.85,
-                                ),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.primary),
-                              ),
-                              child: const Icon(
-                                Icons.play_arrow_rounded,
-                                color: AppColors.textPrimary,
-                                size: 28,
-                              ),
-                            ),
-                            Positioned(
-                              bottom: AppSpacing.sm,
-                              right: AppSpacing.sm,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.background.withValues(
-                                    alpha: 0.85,
-                                  ),
-                                  borderRadius: AppRadii.borderSm,
-                                ),
-                                child: Text(
-                                  video.durationLabel,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(video.title, style: theme.textTheme.titleMedium),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(video.summary, style: theme.textTheme.bodySmall),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
+            _ClubMediaLibrarySection(club: club),
             const SizedBox(height: AppSpacing.xxl),
             const SectionHeader(
               title: 'Club Leadership',
@@ -455,6 +321,184 @@ class _ClubBrandingHeader extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+class _ClubMediaLibrarySection extends StatefulWidget {
+  const _ClubMediaLibrarySection({required this.club});
+
+  final CampusClub club;
+
+  @override
+  State<_ClubMediaLibrarySection> createState() =>
+      _ClubMediaLibrarySectionState();
+}
+
+class _ClubMediaLibrarySectionState extends State<_ClubMediaLibrarySection> {
+  MediaKind? _kindFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hostedEvents = MockCampusData.events
+        .where((e) => e.clubId == widget.club.id)
+        .toList();
+
+    final allMedia = <MediaItem>[
+      ...widget.club.photos,
+      ...widget.club.videos.map(
+        (v) => MediaItem(
+          id: 'club-vid-${v.title}',
+          url: v.videoUrl,
+          thumbnailUrl: v.thumbnailUrl,
+          caption: v.title,
+          kind: MediaKind.video,
+          section: MediaSection.recap,
+          durationLabel: v.durationLabel,
+        ),
+      ),
+      for (final e in hostedEvents) ...[
+        ...e.mediaGallery,
+        ...e.promoVideos,
+        ...e.recapMedia,
+      ],
+    ]..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+
+    final filtered = _kindFilter == null
+        ? allMedia
+        : allMedia.where((m) => m.kind == _kindFilter).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(
+          title: 'Club Media Library',
+          subtitle: 'Event photographs, promotional videos, and recap media',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.xs),
+                child: CategoryChip(
+                  label: 'All Media (${allMedia.length})',
+                  isSelected: _kindFilter == null,
+                  onTap: () => setState(() => _kindFilter = null),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.xs),
+                child: CategoryChip(
+                  label: 'Photos',
+                  isSelected: _kindFilter == MediaKind.photo,
+                  onTap: () => setState(() => _kindFilter = MediaKind.photo),
+                ),
+              ),
+              CategoryChip(
+                label: 'Videos',
+                isSelected: _kindFilter == MediaKind.video,
+                onTap: () => setState(() => _kindFilter = MediaKind.video),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (filtered.isEmpty)
+          AppCard(
+            child: Text(
+              'No media items published in this category yet.',
+              style: theme.textTheme.bodyMedium,
+            ),
+          )
+        else
+          ResponsiveCardGrid(
+            children: filtered.map((media) {
+              final isVideo = media.kind == MediaKind.video;
+              return AppCard(
+                padding: EdgeInsets.zero,
+                onTap: () => isVideo
+                    ? showVideoEmbedDialog(context, media)
+                    : showMediaPreviewDialog(
+                        context,
+                        media,
+                        gallery: filtered,
+                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CampusNetworkImage(
+                          imageUrl: media.thumbnailUrl ?? media.url,
+                          height: 172,
+                          width: double.infinity,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(AppRadii.lg - 1),
+                          ),
+                        ),
+                        if (isVideo)
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.background.withValues(
+                                alpha: 0.85,
+                              ),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.primary),
+                            ),
+                            child: const Icon(
+                              Icons.play_arrow_rounded,
+                              color: AppColors.textPrimary,
+                              size: 28,
+                            ),
+                          ),
+                        Positioned(
+                          top: AppSpacing.sm,
+                          left: AppSpacing.sm,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.background.withValues(
+                                alpha: 0.85,
+                              ),
+                              borderRadius: AppRadii.borderPill,
+                            ),
+                            child: Text(
+                              media.section.label,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: AppColors.secondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Text(
+                        media.caption,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+      ],
     );
   }
 }

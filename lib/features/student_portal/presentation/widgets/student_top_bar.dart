@@ -6,7 +6,6 @@ import 'package:bennett_campus/core/theme/app_colors.dart';
 import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
 import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
-import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
 import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
 import 'package:bennett_campus/shared/widgets/app_search_bar.dart';
 import 'package:bennett_campus/shared/widgets/responsive_layout.dart';
@@ -56,9 +55,7 @@ class _StudentTopBarState extends ConsumerState<StudentTopBar> {
 
     final screenType = DeviceScreenType.of(context);
     final isMobile = screenType == DeviceScreenType.mobile;
-    final unreadCount = MockCampusData.notifications
-        .where((n) => n.isUnread)
-        .length;
+    final unreadCount = ref.watch(unreadNotificationsCountProvider);
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -107,7 +104,7 @@ class _StudentTopBarState extends ConsumerState<StudentTopBar> {
           const SizedBox(width: AppSpacing.sm),
           _NotificationButton(
             unreadCount: unreadCount,
-            onPressed: () => _showNotificationsSheet(context),
+            onPressed: () => context.go(AppRoutes.notifications),
           ),
           const SizedBox(width: AppSpacing.xs),
           _StudentProfileMenu(
@@ -122,73 +119,6 @@ class _StudentTopBarState extends ConsumerState<StudentTopBar> {
                 ref.read(authControllerProvider.notifier).signOut(),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showNotificationsSheet(BuildContext context) {
-    final theme = Theme.of(context);
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(
-              Icons.notifications_active_outlined,
-              size: 20,
-              color: AppColors.secondary,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            const Expanded(child: Text('Campus Notifications')),
-            IconButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              icon: const Icon(Icons.close_rounded, size: 18),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: MockCampusData.notifications.map((item) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                padding: const EdgeInsets.all(AppSpacing.sm + 2),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: AppRadii.borderMd,
-                  border: Border.all(
-                    color: item.isUnread
-                        ? AppColors.primary.withValues(alpha: 0.45)
-                        : AppColors.borderSubtle,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.title,
-                            style: theme.textTheme.titleSmall,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          item.timeAgo,
-                          style: theme.textTheme.labelSmall,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(item.body, style: theme.textTheme.bodySmall),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ),
       ),
     );
   }

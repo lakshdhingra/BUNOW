@@ -5,6 +5,7 @@ import 'package:bennett_campus/core/router/app_routes.dart';
 import 'package:bennett_campus/features/auth/presentation/pages/login_page.dart';
 import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
 import 'package:bennett_campus/features/organizer_studio/presentation/pages/event_wizard_page.dart';
+import 'package:bennett_campus/features/organizer_studio/presentation/pages/organizer_attendance_page.dart';
 import 'package:bennett_campus/features/organizer_studio/presentation/pages/organizer_club_management_page.dart';
 import 'package:bennett_campus/features/organizer_studio/presentation/pages/organizer_dashboard_page.dart';
 import 'package:bennett_campus/features/organizer_studio/presentation/pages/organizer_events_page.dart';
@@ -19,6 +20,7 @@ import 'package:bennett_campus/features/student_portal/presentation/pages/explor
 import 'package:bennett_campus/features/student_portal/presentation/pages/highlights_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/home_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/my_events_page.dart';
+import 'package:bennett_campus/features/student_portal/presentation/pages/notifications_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/profile_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/registration_ticket_page.dart';
 import 'package:bennett_campus/shared/widgets/app_error_widget.dart';
@@ -151,6 +153,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            path: AppRoutes.notifications,
+            name: 'notifications',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: NotificationsPage(),
+            ),
+          ),
+          GoRoute(
             path: AppRoutes.profile,
             name: 'profile',
             pageBuilder: (context, state) => const NoTransitionPage(
@@ -206,6 +215,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'organizer_registrations',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: OrganizerRegistrationsPage(),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.organizerAttendance,
+            name: 'organizer_attendance',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: OrganizerAttendancePage(),
             ),
           ),
           GoRoute(

@@ -10,6 +10,7 @@ import 'package:bennett_campus/core/theme/app_spacing.dart';
 import 'package:bennett_campus/features/organizer_studio/domain/models/organizer_models.dart';
 import 'package:bennett_campus/features/organizer_studio/presentation/providers/organizer_providers.dart';
 import 'package:bennett_campus/features/organizer_studio/presentation/widgets/dynamic_form_builder.dart';
+import 'package:bennett_campus/features/organizer_studio/presentation/widgets/media_manager_widget.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/registration_models.dart';
 import 'package:bennett_campus/shared/widgets/widgets.dart';
@@ -71,6 +72,7 @@ class _EventWizardPageState extends ConsumerState<EventWizardPage> {
   RegistrationMode _registrationMode = RegistrationMode.basic;
   List<RegistrationQuestion> _questions = [];
   List<String> _mediaUrls = [];
+  List<MediaItem> _mediaItems = [];
   int _existingRegisteredCount = 0;
 
   @override
@@ -120,6 +122,7 @@ class _EventWizardPageState extends ConsumerState<EventWizardPage> {
     _registrationMode = match.registrationMode;
     _questions = List<RegistrationQuestion>.from(match.registrationQuestions);
     _mediaUrls = List<String>.from(match.mediaUrls);
+    _mediaItems = List<MediaItem>.from(match.mediaItems);
     _existingRegisteredCount = match.registeredCount;
   }
 
@@ -337,6 +340,15 @@ class _EventWizardPageState extends ConsumerState<EventWizardPage> {
             height: 200,
             width: double.infinity,
             borderRadius: AppRadii.borderLg,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          MediaManagerWidget(
+            title: 'Event Gallery, Promo Videos & Recap Ordering',
+            items: _mediaItems,
+            onChanged: (updated) => setState(() {
+              _mediaItems = updated;
+              _mediaUrls = updated.map((m) => m.url).toList();
+            }),
           ),
         ],
       ),
@@ -629,6 +641,7 @@ class _EventWizardPageState extends ConsumerState<EventWizardPage> {
           ? _questions
           : const [],
       mediaUrls: _mediaUrls,
+      mediaItems: _mediaItems,
       updatedAt: DateTime.now(),
     );
 
