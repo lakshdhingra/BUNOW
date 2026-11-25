@@ -142,7 +142,9 @@ class AuthController extends Notifier<AuthState> {
     if (!SupabaseService.isInitialized) {
       state = state.copyWith(
         isSubmitting: false,
-        errorMessage: 'Supabase is not initialized.',
+        errorMessage:
+            SupabaseService.initializationErrorMessage ??
+            'Supabase is not initialized. Run with --dart-define-from-file=env.local.json.',
       );
       return;
     }
@@ -185,7 +187,9 @@ class AuthController extends Notifier<AuthState> {
     if (!SupabaseService.isInitialized) {
       state = state.copyWith(
         isSubmitting: false,
-        errorMessage: 'Supabase is not initialized.',
+        errorMessage:
+            SupabaseService.initializationErrorMessage ??
+            'Supabase is not initialized. Run with --dart-define-from-file=env.local.json.',
       );
       return;
     }

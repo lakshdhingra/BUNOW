@@ -5,6 +5,14 @@ abstract final class SupabaseConfig {
     'SUPABASE_PUBLISHABLE_KEY',
   );
 
-  static bool get isConfigured =>
-      url.trim().isNotEmpty && publishableKey.trim().isNotEmpty;
+  static bool get hasUrl => url.trim().isNotEmpty;
+
+  static bool get hasPublishableKey => publishableKey.trim().isNotEmpty;
+
+  static bool get isConfigured => hasUrl && hasPublishableKey;
+
+  /// Non-sensitive diagnostic summary safe for console logging.
+  static String get diagnosticSummary =>
+      'SUPABASE_URL configured: $hasUrl, '
+      'SUPABASE_PUBLISHABLE_KEY configured: $hasPublishableKey';
 }
