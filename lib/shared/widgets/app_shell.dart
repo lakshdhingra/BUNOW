@@ -95,6 +95,9 @@ class _AppShellState extends ConsumerState<AppShell> {
   ];
 
   int get _selectedIndex {
+    if (widget.currentLocation.startsWith('/events/')) {
+      return 1;
+    }
     final index = _destinations.indexWhere(
       (item) => widget.currentLocation.startsWith(item.route),
     );

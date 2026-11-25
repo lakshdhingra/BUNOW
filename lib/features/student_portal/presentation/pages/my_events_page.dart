@@ -7,7 +7,6 @@ import 'package:bennett_campus/core/theme/app_spacing.dart';
 import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
 import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/event_card.dart';
-import 'package:bennett_campus/features/student_portal/presentation/widgets/event_detail_dialog.dart';
 import 'package:bennett_campus/shared/widgets/widgets.dart';
 
 /// Placeholder page for a student's registered events and digital passes.
@@ -68,22 +67,8 @@ class MyEventsPage extends ConsumerWidget {
                   return EventCard(
                     event: event,
                     isRegistered: true,
-                    onTap: () => showEventPreviewDialog(
-                      context: context,
-                      event: event,
-                      isRegistered: true,
-                      onToggleRegistration: () => ref
-                          .read(registeredEventIdsProvider.notifier)
-                          .toggle(event.id),
-                    ),
-                    onActionTap: () => showEventPreviewDialog(
-                      context: context,
-                      event: event,
-                      isRegistered: true,
-                      onToggleRegistration: () => ref
-                          .read(registeredEventIdsProvider.notifier)
-                          .toggle(event.id),
-                    ),
+                    onTap: () => context.go(AppRoutes.eventDetail(event.id)),
+                    onActionTap: () => context.go(AppRoutes.eventDetail(event.id)),
                   );
                 }).toList(),
               ),

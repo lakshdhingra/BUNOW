@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:bennett_campus/core/router/app_routes.dart';
 import 'package:bennett_campus/core/theme/app_colors.dart';
 import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
 import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
 import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
-import 'package:bennett_campus/features/student_portal/presentation/widgets/event_detail_dialog.dart';
 import 'package:bennett_campus/shared/widgets/widgets.dart';
 
 /// Chronological campus schedule placeholder page (Stage 1 mock data).
@@ -41,14 +42,7 @@ class CalendarPage extends ConsumerWidget {
               return Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.md),
                 child: AppCard(
-                  onTap: () => showEventPreviewDialog(
-                    context: context,
-                    event: event,
-                    isRegistered: isRegistered,
-                    onToggleRegistration: () => ref
-                        .read(registeredEventIdsProvider.notifier)
-                        .toggle(event.id),
-                  ),
+                  onTap: () => context.go(AppRoutes.eventDetail(event.id)),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

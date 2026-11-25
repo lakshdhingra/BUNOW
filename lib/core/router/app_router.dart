@@ -5,7 +5,9 @@ import 'package:bennett_campus/core/router/app_routes.dart';
 import 'package:bennett_campus/features/auth/presentation/pages/login_page.dart';
 import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/calendar_page.dart';
+import 'package:bennett_campus/features/student_portal/presentation/pages/club_profile_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/clubs_page.dart';
+import 'package:bennett_campus/features/student_portal/presentation/pages/event_detail_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/explore_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/highlights_page.dart';
 import 'package:bennett_campus/features/student_portal/presentation/pages/home_page.dart';
@@ -76,6 +78,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            path: AppRoutes.eventDetailPattern,
+            name: 'event_detail',
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: EventDetailPage(
+                eventId: state.pathParameters['eventId'] ?? '',
+              ),
+            ),
+          ),
+          GoRoute(
             path: AppRoutes.calendar,
             name: 'calendar',
             pageBuilder: (context, state) => const NoTransitionPage(
@@ -94,6 +105,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'clubs',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: ClubsPage(),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.clubProfilePattern,
+            name: 'club_profile',
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: ClubProfilePage(
+                clubId: state.pathParameters['clubId'] ?? '',
+              ),
             ),
           ),
           GoRoute(

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:bennett_campus/core/theme/app_colors.dart';
 import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
+import 'package:bennett_campus/core/utils/external_links.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/shared/widgets/app_card.dart';
 import 'package:bennett_campus/shared/widgets/campus_network_image.dart';
 
-/// Reusable card displaying a Bennett University club or student chapter.
+/// Reusable card displaying a Bennett University club with branding and social links.
 class ClubCard extends StatelessWidget {
   const ClubCard({
     super.key,
@@ -32,7 +33,7 @@ class ClubCard extends StatelessWidget {
             children: [
               CampusNetworkImage(
                 imageUrl: club.coverUrl,
-                height: 108,
+                height: 112,
                 width: double.infinity,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(AppRadii.lg - 1),
@@ -43,8 +44,8 @@ class ClubCard extends StatelessWidget {
                 bottom: -18,
                 left: AppSpacing.md,
                 child: Container(
-                  width: 44,
-                  height: 44,
+                  width: 46,
+                  height: 46,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppColors.surfaceElevated,
@@ -65,7 +66,7 @@ class ClubCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.md,
-              AppSpacing.lg + 4,
+              AppSpacing.lg + 6,
               AppSpacing.md,
               AppSpacing.md,
             ),
@@ -121,12 +122,69 @@ class ClubCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (club.socialLinks.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  const Divider(),
+                  const SizedBox(height: AppSpacing.sm),
+                  Wrap(
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xs,
+                    children: club.socialLinks.take(3).map((link) {
+                      return InkWell(
+                        onTap: () => launchExternalUrl(
+                          context,
+                          link.url,
+                          label: link.platform,
+                        ),
+                        borderRadius: AppRadii.borderPill,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xxs + 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.background,
+                            borderRadius: AppRadii.borderPill,
+                            border: Border.all(color: AppColors.borderSubtle),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _socialIcon(link.platform),
+                                size: 12,
+                                color: AppColors.secondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                link.platform,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  static IconData _socialIcon(String platform) {
+    return switch (platform.toLowerCase()) {
+      'instagram' => Icons.camera_alt_outlined,
+      'linkedin' => Icons.work_outline_rounded,
+      'github' => Icons.code_rounded,
+      'youtube' => Icons.play_circle_outline_rounded,
+      _ => Icons.public_rounded,
+    };
   }
 }
 

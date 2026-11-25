@@ -11,7 +11,6 @@ import 'package:bennett_campus/features/student_portal/presentation/providers/st
 import 'package:bennett_campus/features/student_portal/presentation/widgets/category_chip.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/club_card.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/event_card.dart';
-import 'package:bennett_campus/features/student_portal/presentation/widgets/event_detail_dialog.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/featured_event_banner.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/highlight_card.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/section_header.dart';
@@ -62,13 +61,8 @@ class HomePage extends ConsumerWidget {
               isRegistered: registeredIds.contains(featuredEvent.id),
               onRegisterTap: () =>
                   _toggleEventRegistration(context, ref, featuredEvent),
-              onDetailsTap: () => showEventPreviewDialog(
-                context: context,
-                event: featuredEvent,
-                isRegistered: registeredIds.contains(featuredEvent.id),
-                onToggleRegistration: () =>
-                    _toggleEventRegistration(context, ref, featuredEvent),
-              ),
+              onDetailsTap: () =>
+                  context.go(AppRoutes.eventDetail(featuredEvent.id)),
             ),
             const SizedBox(height: AppSpacing.xl),
             const SectionHeader(
@@ -139,13 +133,7 @@ class HomePage extends ConsumerWidget {
                   return EventCard(
                     event: event,
                     isRegistered: isRegistered,
-                    onTap: () => showEventPreviewDialog(
-                      context: context,
-                      event: event,
-                      isRegistered: isRegistered,
-                      onToggleRegistration: () =>
-                          _toggleEventRegistration(context, ref, event),
-                    ),
+                    onTap: () => context.go(AppRoutes.eventDetail(event.id)),
                     onActionTap: () =>
                         _toggleEventRegistration(context, ref, event),
                   );
@@ -163,7 +151,7 @@ class HomePage extends ConsumerWidget {
               children: MockCampusData.clubs.take(3).map((club) {
                 return ClubCard(
                   club: club,
-                  onTap: () => context.go(AppRoutes.clubs),
+                  onTap: () => context.go(AppRoutes.clubProfile(club.id)),
                 );
               }).toList(),
             ),
