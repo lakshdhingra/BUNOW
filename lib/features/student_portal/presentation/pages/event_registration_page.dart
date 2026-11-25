@@ -8,11 +8,9 @@ import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
 import 'package:bennett_campus/features/auth/domain/models/student_user.dart';
 import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
-import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/registration_models.dart';
 import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
-import 'package:bennett_campus/features/student_portal/presentation/widgets/dynamic_registration_form.dart';
 import 'package:bennett_campus/shared/widgets/widgets.dart';
 
 /// Registration flow supporting Mode A (Basic one-click) and Mode B (Custom form).
@@ -33,120 +31,135 @@ class _EventRegistrationPageState extends ConsumerState<EventRegistrationPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final event = MockCampusData.events
-        .where((e) => e.id == widget.eventId)
-        .firstOrNull;
+    final eventAsync = ref.watch(eventDetailProvider(widget.eventId));
     final user = ref.watch(authControllerProvider).user;
 
-    if (event == null) {
-      return Padding(
+    return eventAsync.when(
+      loading: () => const AppLoadingIndicator(
+        message: 'Loading registration details...',
+      ),
+      error: (error, _) => Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: AppErrorWidget(
-          title: 'Event not found',
-          message: 'Could not locate registration details for "${widget.eventId}".',
-          retryLabel: 'Back to Explore',
-          onRetry: () => context.go(AppRoutes.explore),
-        ),
-      );
-    }
-
-    final existingRegistration = ref.watch(
-      activeRegistrationForEventProvider(event.id),
-    );
-    final isDesktop = DeviceScreenType.of(context) == DeviceScreenType.desktop;
-
-    return SingleChildScrollView(
-      child: ResponsiveContainer(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextButton.icon(
-              onPressed: () => context.go(AppRoutes.eventDetail(event.id)),
-              icon: const Icon(Icons.arrow_back_rounded, size: 18),
-              label: const Text('Back to Event Details'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              event.registrationMode == RegistrationMode.basic
-                  ? 'Quick Event Registration'
-                  : 'Event Registration Form',
-              style: theme.textTheme.headlineLarge,
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              event.registrationMode == RegistrationMode.basic
-                  ? 'Verify your Bennett student details and register in one click.'
-                  : 'Complete the organizer-configured registration questions below.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            if (existingRegistration != null)
-              _BlockedRegistrationCard(
-                icon: Icons.check_circle_outline_rounded,
-                accentColor: AppColors.success,
-                title: 'Already Registered',
-                message:
-                    'You already hold an active pass (${existingRegistration.ticketCode}) for ${event.title}. Duplicate registrations are prevented.',
-                primaryLabel: 'View Registration Ticket',
-                onPrimaryTap: () => context.go(
-                  AppRoutes.ticketDetail(existingRegistration.id),
-                ),
-                secondaryLabel: 'Back to Event',
-                onSecondaryTap: () =>
-                    context.go(AppRoutes.eventDetail(event.id)),
-              )
-            else if (event.isCompleted || event.isRegistrationClosed)
-              _BlockedRegistrationCard(
-                icon: Icons.event_busy_outlined,
-                accentColor: AppColors.warning,
-                title: event.isCompleted
-                    ? 'Event Completed'
-                    : 'Registrations Closed',
-                message: event.isCompleted
-                    ? 'This campus event has already taken place.'
-                    : 'The registration window closed on ${DateFormat('d MMM, h:mm a').format(event.registrationDeadline)}.',
-                primaryLabel: 'Explore Upcoming Events',
-                onPrimaryTap: () => context.go(AppRoutes.explore),
-                secondaryLabel: 'Back to Event',
-                onSecondaryTap: () =>
-                    context.go(AppRoutes.eventDetail(event.id)),
-              )
-            else if (event.isFull)
-              _BlockedRegistrationCard(
-                icon: Icons.group_off_outlined,
-                accentColor: AppColors.error,
-                title: 'Event at Full Capacity',
-                message:
-                    'All ${event.capacity} spots for ${event.title} are currently filled.',
-                primaryLabel: 'Explore Other Events',
-                onPrimaryTap: () => context.go(AppRoutes.explore),
-                secondaryLabel: 'Back to Event',
-                onSecondaryTap: () =>
-                    context.go(AppRoutes.eventDetail(event.id)),
-              )
-            else if (isDesktop)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 7,
-                    child: _buildFormColumn(context, event, user),
-                  ),
-                  const SizedBox(width: AppSpacing.xl),
-                  Expanded(
-                    flex: 4,
-                    child: _EventRegistrationSummary(event: event),
-                  ),
-                ],
-              )
-            else ...[
-              _EventRegistrationSummary(event: event),
-              const SizedBox(height: AppSpacing.lg),
-              _buildFormColumn(context, event, user),
-            ],
-          ],
+          title: 'Unable to load registration page',
+          message: error.toString(),
+          onRetry: () => ref.invalidate(eventDetailProvider(widget.eventId)),
         ),
       ),
+      data: (event) {
+        if (event == null) {
+          return Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: AppErrorWidget(
+              title: 'Event not found',
+              message:
+                  'Could not locate registration details for "${widget.eventId}".',
+              retryLabel: 'Back to Explore',
+              onRetry: () => context.go(AppRoutes.explore),
+            ),
+          );
+        }
+
+        final existingRegistration = ref.watch(
+          activeRegistrationForEventProvider(event.id),
+        );
+        final isDesktop =
+            DeviceScreenType.of(context) == DeviceScreenType.desktop;
+
+        return SingleChildScrollView(
+          child: ResponsiveContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextButton.icon(
+                  onPressed: () => context.go(AppRoutes.eventDetail(event.id)),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  label: const Text('Back to Event Details'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  event.registrationMode == RegistrationMode.basic
+                      ? 'Quick Event Registration'
+                      : 'Event Registration Form',
+                  style: theme.textTheme.headlineLarge,
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  event.registrationMode == RegistrationMode.basic
+                      ? 'Verify your Bennett student details and register in one click.'
+                      : 'This event uses an advanced registration form.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                if (existingRegistration != null)
+                  _BlockedRegistrationCard(
+                    icon: Icons.check_circle_outline_rounded,
+                    accentColor: AppColors.success,
+                    title: 'Already Registered',
+                    message:
+                        'You already hold an active pass (${existingRegistration.ticketCode}) for ${event.title}. Duplicate registrations are prevented.',
+                    primaryLabel: 'View Registration Ticket',
+                    onPrimaryTap: () => context.go(
+                      AppRoutes.ticketDetail(existingRegistration.id),
+                    ),
+                    secondaryLabel: 'Back to Event',
+                    onSecondaryTap: () =>
+                        context.go(AppRoutes.eventDetail(event.id)),
+                  )
+                else if (event.isCompleted || event.isRegistrationClosed)
+                  _BlockedRegistrationCard(
+                    icon: Icons.event_busy_outlined,
+                    accentColor: AppColors.warning,
+                    title: event.isCompleted
+                        ? 'Event Completed'
+                        : 'Registrations Closed',
+                    message: event.isCompleted
+                        ? 'This campus event has already taken place.'
+                        : 'The registration window closed on ${DateFormat('d MMM, h:mm a').format(event.registrationDeadline)}.',
+                    primaryLabel: 'Explore Upcoming Events',
+                    onPrimaryTap: () => context.go(AppRoutes.explore),
+                    secondaryLabel: 'Back to Event',
+                    onSecondaryTap: () =>
+                        context.go(AppRoutes.eventDetail(event.id)),
+                  )
+                else if (event.isFull)
+                  _BlockedRegistrationCard(
+                    icon: Icons.group_off_outlined,
+                    accentColor: AppColors.error,
+                    title: 'Event at Full Capacity',
+                    message:
+                        'All ${event.capacity} spots for ${event.title} are currently filled.',
+                    primaryLabel: 'Explore Other Events',
+                    onPrimaryTap: () => context.go(AppRoutes.explore),
+                    secondaryLabel: 'Back to Event',
+                    onSecondaryTap: () =>
+                        context.go(AppRoutes.eventDetail(event.id)),
+                  )
+                else if (isDesktop)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 7,
+                        child: _buildFormColumn(context, event, user),
+                      ),
+                      const SizedBox(width: AppSpacing.xl),
+                      Expanded(
+                        flex: 4,
+                        child: _EventRegistrationSummary(event: event),
+                      ),
+                    ],
+                  )
+                else ...[
+                  _EventRegistrationSummary(event: event),
+                  const SizedBox(height: AppSpacing.lg),
+                  _buildFormColumn(context, event, user),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -201,19 +214,20 @@ class _EventRegistrationPageState extends ConsumerState<EventRegistrationPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Registration Questions',
+                      'Advanced Registration Pending',
                       style: theme.textTheme.headlineSmall,
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Fields marked with * are required by ${event.clubName}.',
-                      style: theme.textTheme.bodySmall,
+                      'This event requires custom form responses (${event.registrationQuestions.length} question(s)). Advanced registration submission will be connected in the next integration stage.',
+                      style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    DynamicRegistrationForm(
-                      questions: event.registrationQuestions,
-                      isSubmitting: _isSubmitting,
-                      onSubmit: (answers) => _submitRegistration(event, answers),
+                    AppButton(
+                      label: 'Back to Event Details',
+                      variant: AppButtonVariant.outline,
+                      onPressed: () =>
+                          context.go(AppRoutes.eventDetail(event.id)),
                     ),
                   ],
                 ),

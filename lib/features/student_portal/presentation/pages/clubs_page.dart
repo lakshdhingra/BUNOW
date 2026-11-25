@@ -4,13 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:bennett_campus/core/router/app_routes.dart';
 import 'package:bennett_campus/core/theme/app_colors.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
-import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
 import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/category_chip.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/club_card.dart';
 import 'package:bennett_campus/shared/widgets/widgets.dart';
 
-/// Complete directory of onboarded Bennett University clubs and chapters.
+/// Active clubs directory connected to Supabase `clubs`.
 class ClubsPage extends ConsumerStatefulWidget {
   const ClubsPage({super.key});
 
@@ -40,6 +39,7 @@ class _ClubsPageState extends ConsumerState<ClubsPage> {
     final theme = Theme.of(context);
     final query = ref.watch(searchQueryProvider).trim().toLowerCase();
     final selectedCategory = ref.watch(clubCategoryFilterProvider);
+    final clubsAsync = ref.watch(activeClubsProvider);
 
     if (_searchController.text != ref.watch(searchQueryProvider)) {
       final current = ref.read(searchQueryProvider);
@@ -49,22 +49,6 @@ class _ClubsPageState extends ConsumerState<ClubsPage> {
       );
     }
 
-    final categories = <String>[
-      'All',
-      ...{for (final club in MockCampusData.clubs) club.category},
-    ];
-
-    final clubs = MockCampusData.clubs.where((club) {
-      if (selectedCategory != 'All' && club.category != selectedCategory) {
-        return false;
-      }
-      if (query.isEmpty) return true;
-      return club.name.toLowerCase().contains(query) ||
-          club.category.toLowerCase().contains(query) ||
-          club.tagline.toLowerCase().contains(query) ||
-          club.about.toLowerCase().contains(query);
-    }).toList();
-
     return SingleChildScrollView(
       child: ResponsiveContainer(
         child: Column(
@@ -73,7 +57,7 @@ class _ClubsPageState extends ConsumerState<ClubsPage> {
             Text('Clubs & Chapters', style: theme.textTheme.headlineLarge),
             const SizedBox(height: AppSpacing.xxs),
             Text(
-              'Explore verified student-led technical, cultural, design, and entrepreneurship communities at Bennett University.',
+              'Explore active student-led technical, cultural, design, and entrepreneurship communities at Bennett University.',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -88,63 +72,107 @@ class _ClubsPageState extends ConsumerState<ClubsPage> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: categories.map((category) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.xs),
-                    child: CategoryChip(
-                      label: category,
-                      isSelected: selectedCategory == category,
-                      onTap: () => ref
-                          .read(clubCategoryFilterProvider.notifier)
-                          .select(category),
-                    ),
-                  );
-                }).toList(),
+            clubsAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+                child: AppLoadingIndicator(message: 'Loading active clubs...'),
               ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            if (clubs.isEmpty)
-              AppCard(
-                child: Column(
+              error: (error, _) => AppErrorWidget(
+                title: 'Unable to load clubs',
+                message: error.toString(),
+                onRetry: () => ref.invalidate(activeClubsProvider),
+              ),
+              data: (allClubs) {
+                final categories = <String>[
+                  'All',
+                  ...{for (final club in allClubs) club.category},
+                ];
+
+                final effectiveCategory = categories.contains(selectedCategory)
+                    ? selectedCategory
+                    : 'All';
+
+                final clubs = allClubs.where((club) {
+                  if (effectiveCategory != 'All' &&
+                      club.category != effectiveCategory) {
+                    return false;
+                  }
+                  if (query.isEmpty) return true;
+                  return club.name.toLowerCase().contains(query) ||
+                      club.category.toLowerCase().contains(query) ||
+                      club.tagline.toLowerCase().contains(query) ||
+                      club.about.toLowerCase().contains(query);
+                }).toList();
+
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.groups_outlined,
-                      size: 32,
-                      color: AppColors.textMuted,
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: categories.map((category) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: AppSpacing.xs),
+                            child: CategoryChip(
+                              label: category,
+                              isSelected: effectiveCategory == category,
+                              onTap: () => ref
+                                  .read(clubCategoryFilterProvider.notifier)
+                                  .select(category),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'No matching clubs found',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    AppButton(
-                      label: 'Show All Clubs',
-                      variant: AppButtonVariant.outline,
-                      size: AppButtonSize.sm,
-                      onPressed: () {
-                        ref.read(searchQueryProvider.notifier).clear();
-                        ref
-                            .read(clubCategoryFilterProvider.notifier)
-                            .select('All');
-                      },
-                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    if (clubs.isEmpty)
+                      AppCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.groups_outlined,
+                              size: 32,
+                              color: AppColors.textMuted,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              allClubs.isEmpty
+                                  ? 'No active clubs yet'
+                                  : 'No matching clubs found',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            if (allClubs.isNotEmpty) ...[
+                              const SizedBox(height: AppSpacing.xs),
+                              AppButton(
+                                label: 'Show All Clubs',
+                                variant: AppButtonVariant.outline,
+                                size: AppButtonSize.sm,
+                                onPressed: () {
+                                  ref.read(searchQueryProvider.notifier).clear();
+                                  ref
+                                      .read(clubCategoryFilterProvider.notifier)
+                                      .select('All');
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
+                    else
+                      ResponsiveCardGrid(
+                        children: clubs.map((club) {
+                          return ClubCard(
+                            club: club,
+                            onTap: () =>
+                                context.go(AppRoutes.clubProfile(club.id)),
+                          );
+                        }).toList(),
+                      ),
                   ],
-                ),
-              )
-            else
-              ResponsiveCardGrid(
-                children: clubs.map((club) {
-                  return ClubCard(
-                    club: club,
-                    onTap: () => context.go(AppRoutes.clubProfile(club.id)),
-                  );
-                }).toList(),
-              ),
+                );
+              },
+            ),
           ],
         ),
       ),

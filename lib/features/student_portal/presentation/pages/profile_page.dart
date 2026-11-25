@@ -16,7 +16,8 @@ class ProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final user = ref.watch(authControllerProvider).user;
+    final authState = ref.watch(authControllerProvider);
+    final user = authState.user;
     final registeredCount = ref.watch(registeredEventIdsProvider).length;
 
     return SingleChildScrollView(
@@ -31,6 +32,48 @@ class ProfilePage extends ConsumerWidget {
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.xl),
+            if (user != null && user.isProfileMissing) ...[
+              AppCard(
+                borderColor: AppColors.warning.withValues(alpha: 0.45),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      color: AppColors.warning,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Profile record not found in Supabase',
+                            style: theme.textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Signed in as ${user.email}, but no matching row exists in `profiles` for UID ${user.id} yet.',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    AppButton(
+                      label: 'Retry',
+                      size: AppButtonSize.sm,
+                      variant: AppButtonVariant.outline,
+                      isLoading: authState.isProfileLoading,
+                      onPressed: () => ref
+                          .read(authControllerProvider.notifier)
+                          .refreshProfile(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+            ],
             AppCard(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -62,10 +105,26 @@ class ProfilePage extends ConsumerWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${user?.program ?? 'Undergraduate'} · ${user?.batchYear ?? ''}',
+                          [
+                            if (user?.enrollmentNumber != null &&
+                                user!.enrollmentNumber!.isNotEmpty)
+                              user.enrollmentNumber!,
+                            user?.program ?? 'Bennett University',
+                            user?.batchYear ?? '',
+                          ].where((s) => s.isNotEmpty).join(' · '),
                           style: theme.textTheme.bodySmall,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (user != null && user.interests.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Wrap(
+                            spacing: AppSpacing.xs,
+                            runSpacing: AppSpacing.xs,
+                            children: user.interests
+                                .map((tag) => Chip(label: Text(tag)))
+                                .toList(),
+                          ),
+                        ],
                       ],
                     ),
                   ),

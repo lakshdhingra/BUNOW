@@ -1,10 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:bennett_campus/core/services/supabase_service.dart';
 import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
-import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
+import 'package:bennett_campus/features/student_portal/data/repositories/mock_club_repository.dart';
+import 'package:bennett_campus/features/student_portal/data/repositories/mock_event_repository.dart';
 import 'package:bennett_campus/features/student_portal/data/repositories/mock_notification_repository.dart';
 import 'package:bennett_campus/features/student_portal/data/repositories/mock_registration_repository.dart';
+import 'package:bennett_campus/features/student_portal/data/repositories/supabase_club_repository.dart';
+import 'package:bennett_campus/features/student_portal/data/repositories/supabase_event_repository.dart';
+import 'package:bennett_campus/features/student_portal/data/repositories/supabase_notification_repository.dart';
+import 'package:bennett_campus/features/student_portal/data/repositories/supabase_registration_repository.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/registration_models.dart';
+import 'package:bennett_campus/features/student_portal/domain/repositories/club_repository.dart';
+import 'package:bennett_campus/features/student_portal/domain/repositories/event_repository.dart';
 import 'package:bennett_campus/features/student_portal/domain/repositories/notification_repository.dart';
 import 'package:bennett_campus/features/student_portal/domain/repositories/registration_repository.dart';
 
@@ -60,51 +68,97 @@ class ClubCategoryFilterNotifier extends Notifier<String> {
   void select(String category) => state = category;
 }
 
+final eventRepositoryProvider = Provider<EventRepository>((ref) {
+  if (SupabaseService.isInitialized) {
+    return SupabaseEventRepository(SupabaseService.client);
+  }
+  return MockEventRepository();
+});
+
+final clubRepositoryProvider = Provider<ClubRepository>((ref) {
+  if (SupabaseService.isInitialized) {
+    return SupabaseClubRepository(SupabaseService.client);
+  }
+  return MockClubRepository();
+});
+
 final registrationRepositoryProvider = Provider<RegistrationRepository>((ref) {
+  if (SupabaseService.isInitialized) {
+    return SupabaseRegistrationRepository(SupabaseService.client);
+  }
   return MockRegistrationRepository();
 });
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+  if (SupabaseService.isInitialized) {
+    return SupabaseNotificationRepository(SupabaseService.client);
+  }
   return MockNotificationRepository();
 });
+
+final publishedEventsProvider =
+    FutureProvider.autoDispose<List<CampusEvent>>((ref) async {
+      return ref.watch(eventRepositoryProvider).fetchPublishedEvents();
+    });
+
+final eventDetailProvider =
+    FutureProvider.autoDispose.family<CampusEvent?, String>((ref, eventId) {
+      return ref.watch(eventRepositoryProvider).fetchEventById(eventId);
+    });
+
+final activeClubsProvider =
+    FutureProvider.autoDispose<List<CampusClub>>((ref) async {
+      return ref.watch(clubRepositoryProvider).fetchActiveClubs();
+    });
+
+final clubDetailProvider =
+    FutureProvider.autoDispose.family<
+      ({CampusClub? club, List<CampusEvent> events}),
+      String
+    >((ref, clubId) async {
+      final repo = ref.watch(clubRepositoryProvider);
+      final club = await repo.fetchClubById(clubId);
+      final events = club == null
+          ? const <CampusEvent>[]
+          : await repo.fetchEventsForClub(clubId);
+      return (club: club, events: events);
+    });
 
 class NotificationsController extends AsyncNotifier<List<CampusNotification>> {
   @override
   Future<List<CampusNotification>> build() async {
-    return ref.read(notificationRepositoryProvider).fetchNotifications();
+    final userId = ref.watch(authControllerProvider).user?.id;
+    return ref
+        .read(notificationRepositoryProvider)
+        .fetchNotifications(userId: userId);
   }
 
   Future<void> markAsRead(String id) async {
+    final userId = ref.read(authControllerProvider).user?.id;
     await ref.read(notificationRepositoryProvider).markAsRead(id);
     final next = await ref
         .read(notificationRepositoryProvider)
-        .fetchNotifications();
+        .fetchNotifications(userId: userId);
     state = AsyncData(next);
   }
 
   Future<void> markAsUnread(String id) async {
+    final userId = ref.read(authControllerProvider).user?.id;
     await ref.read(notificationRepositoryProvider).markAsUnread(id);
     final next = await ref
         .read(notificationRepositoryProvider)
-        .fetchNotifications();
+        .fetchNotifications(userId: userId);
     state = AsyncData(next);
   }
 
   Future<void> markAllAsRead() async {
-    await ref.read(notificationRepositoryProvider).markAllAsRead();
-    final next = await ref
-        .read(notificationRepositoryProvider)
-        .fetchNotifications();
-    state = AsyncData(next);
-  }
-
-  Future<void> addNotification(CampusNotification notification) async {
+    final userId = ref.read(authControllerProvider).user?.id;
     await ref
         .read(notificationRepositoryProvider)
-        .addNotification(notification);
+        .markAllAsRead(userId: userId);
     final next = await ref
         .read(notificationRepositoryProvider)
-        .fetchNotifications();
+        .fetchNotifications(userId: userId);
     state = AsyncData(next);
   }
 }
@@ -147,22 +201,9 @@ class RegistrationsController extends AsyncNotifier<List<EventRegistration>> {
 
     final updatedList = await repository.fetchStudentRegistrations(user.id);
     state = AsyncData(updatedList);
-
-    await ref
-        .read(notificationsControllerProvider.notifier)
-        .addNotification(
-          CampusNotification(
-            id: 'notif-${DateTime.now().microsecondsSinceEpoch}',
-            title: 'Registration Confirmed: ${event.title}',
-            body: 'Ticket ${created.ticketCode} is ready in My Events.',
-            timeAgo: 'Just now',
-            type: NotificationType.registrationConfirmation,
-            isUnread: true,
-            eventId: event.id,
-            registrationId: created.id,
-          ),
-        );
-
+    ref.invalidate(publishedEventsProvider);
+    ref.invalidate(eventDetailProvider(event.id));
+    ref.invalidate(notificationsControllerProvider);
     return created;
   }
 
@@ -174,6 +215,7 @@ class RegistrationsController extends AsyncNotifier<List<EventRegistration>> {
     await repository.cancelRegistration(registrationId: registrationId);
     final updatedList = await repository.fetchStudentRegistrations(user.id);
     state = AsyncData(updatedList);
+    ref.invalidate(publishedEventsProvider);
   }
 }
 
@@ -254,61 +296,63 @@ final registrationByIdProvider =
       return null;
     });
 
-/// Reference date anchored to the mock dataset timeline for predictable filtering.
-final DateTime _mockReferenceDate = DateTime(2026, 11, 26);
+final filteredEventsProvider =
+    Provider.autoDispose<AsyncValue<List<CampusEvent>>>((ref) {
+      final eventsAsync = ref.watch(publishedEventsProvider);
+      final query = ref.watch(searchQueryProvider).trim().toLowerCase();
+      final category = ref.watch(selectedCategoryProvider);
+      final clubId = ref.watch(selectedClubFilterProvider);
+      final dateFilter = ref.watch(selectedDateFilterProvider);
+      final statusFilter = ref.watch(registrationStatusFilterProvider);
+      final sortOption = ref.watch(eventSortOptionProvider);
+      final registeredIds = ref.watch(registeredEventIdsProvider);
+      final now = DateTime.now();
 
-final filteredEventsProvider = Provider.autoDispose<List<CampusEvent>>((ref) {
-  final query = ref.watch(searchQueryProvider).trim().toLowerCase();
-  final category = ref.watch(selectedCategoryProvider);
-  final clubId = ref.watch(selectedClubFilterProvider);
-  final dateFilter = ref.watch(selectedDateFilterProvider);
-  final statusFilter = ref.watch(registrationStatusFilterProvider);
-  final sortOption = ref.watch(eventSortOptionProvider);
-  final registeredIds = ref.watch(registeredEventIdsProvider);
+      return eventsAsync.whenData((events) {
+        final results = events.where((event) {
+          if (event.isCompleted) return false;
+          if (category != EventCategory.all && event.category != category) {
+            return false;
+          }
+          if (clubId != null && event.clubId != clubId) {
+            return false;
+          }
 
-  final results = MockCampusData.events.where((event) {
-    if (event.isCompleted) return false;
-    if (category != EventCategory.all && event.category != category) {
-      return false;
-    }
-    if (clubId != null && event.clubId != clubId) {
-      return false;
-    }
+          final daysAway = event.startTime.difference(now).inDays;
+          final matchesDate = switch (dateFilter) {
+            EventDateFilter.all => true,
+            EventDateFilter.thisWeek => daysAway >= 0 && daysAway <= 7,
+            EventDateFilter.thisMonth => daysAway >= 0 && daysAway <= 30,
+            EventDateFilter.upcomingLater => daysAway > 30,
+          };
+          if (!matchesDate) return false;
 
-    final daysAway = event.startTime.difference(_mockReferenceDate).inDays;
-    final matchesDate = switch (dateFilter) {
-      EventDateFilter.all => true,
-      EventDateFilter.thisWeek => daysAway <= 7,
-      EventDateFilter.thisMonth => daysAway <= 30,
-      EventDateFilter.upcomingLater => daysAway > 30,
-    };
-    if (!matchesDate) return false;
+          final isRegistered = registeredIds.contains(event.id);
+          final matchesStatus = switch (statusFilter) {
+            RegistrationStatusFilter.all => true,
+            RegistrationStatusFilter.open =>
+              !event.isFull && !event.isRegistrationClosed,
+            RegistrationStatusFilter.registered => isRegistered,
+            RegistrationStatusFilter.fillingFast =>
+              event.isFillingFast && !event.isRegistrationClosed,
+          };
+          if (!matchesStatus) return false;
 
-    final isRegistered = registeredIds.contains(event.id);
-    final matchesStatus = switch (statusFilter) {
-      RegistrationStatusFilter.all => true,
-      RegistrationStatusFilter.open =>
-        !event.isFull && !event.isRegistrationClosed,
-      RegistrationStatusFilter.registered => isRegistered,
-      RegistrationStatusFilter.fillingFast =>
-        event.isFillingFast && !event.isRegistrationClosed,
-    };
-    if (!matchesStatus) return false;
+          if (query.isEmpty) return true;
+          return event.title.toLowerCase().contains(query) ||
+              event.clubName.toLowerCase().contains(query) ||
+              event.venue.toLowerCase().contains(query) ||
+              event.category.label.toLowerCase().contains(query) ||
+              event.tags.any((tag) => tag.toLowerCase().contains(query));
+        }).toList();
 
-    if (query.isEmpty) return true;
-    return event.title.toLowerCase().contains(query) ||
-        event.clubName.toLowerCase().contains(query) ||
-        event.venue.toLowerCase().contains(query) ||
-        event.category.label.toLowerCase().contains(query) ||
-        event.tags.any((tag) => tag.toLowerCase().contains(query));
-  }).toList();
+        switch (sortOption) {
+          case EventSortOption.upcoming:
+            results.sort((a, b) => a.startTime.compareTo(b.startTime));
+          case EventSortOption.recentlyPublished:
+            results.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+        }
 
-  switch (sortOption) {
-    case EventSortOption.upcoming:
-      results.sort((a, b) => a.startTime.compareTo(b.startTime));
-    case EventSortOption.recentlyPublished:
-      results.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-  }
-
-  return results;
-});
+        return results;
+      });
+    });

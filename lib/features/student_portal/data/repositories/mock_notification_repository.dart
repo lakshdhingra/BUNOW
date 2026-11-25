@@ -10,7 +10,7 @@ class MockNotificationRepository implements NotificationRepository {
   final List<CampusNotification> _items;
 
   @override
-  Future<List<CampusNotification>> fetchNotifications() async {
+  Future<List<CampusNotification>> fetchNotifications({String? userId}) async {
     await Future<void>.delayed(const Duration(milliseconds: 80));
     return List<CampusNotification>.unmodifiable(_items);
   }
@@ -32,7 +32,7 @@ class MockNotificationRepository implements NotificationRepository {
   }
 
   @override
-  Future<void> markAllAsRead() async {
+  Future<void> markAllAsRead({String? userId}) async {
     for (var i = 0; i < _items.length; i++) {
       _items[i] = _items[i].copyWith(isUnread: false);
     }

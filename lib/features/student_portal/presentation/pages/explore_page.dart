@@ -5,14 +5,13 @@ import 'package:bennett_campus/core/router/app_routes.dart';
 import 'package:bennett_campus/core/theme/app_colors.dart';
 import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
-import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/category_chip.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/event_card.dart';
 import 'package:bennett_campus/shared/widgets/widgets.dart';
 
-/// Full Event Discovery page with search, multi-axis filters, and sorting.
+/// Full Event Discovery page connected to Supabase published events.
 class ExplorePage extends ConsumerStatefulWidget {
   const ExplorePage({super.key});
 
@@ -45,7 +44,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     final selectedDateFilter = ref.watch(selectedDateFilterProvider);
     final selectedStatusFilter = ref.watch(registrationStatusFilterProvider);
     final sortOption = ref.watch(eventSortOptionProvider);
-    final events = ref.watch(filteredEventsProvider);
+    final eventsAsync = ref.watch(filteredEventsProvider);
+    final clubs = ref.watch(activeClubsProvider).value ?? const <CampusClub>[];
     final registeredIds = ref.watch(registeredEventIdsProvider);
     final query = ref.watch(searchQueryProvider);
 
@@ -56,10 +56,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       );
     }
 
+    final effectiveClubId =
+        selectedClubId != null && clubs.any((c) => c.id == selectedClubId)
+        ? selectedClubId
+        : null;
+
     final hasActiveFilters =
         query.isNotEmpty ||
         selectedCategory != EventCategory.all ||
-        selectedClubId != null ||
+        effectiveClubId != null ||
         selectedDateFilter != EventDateFilter.all ||
         selectedStatusFilter != RegistrationStatusFilter.all ||
         sortOption != EventSortOption.upcoming;
@@ -72,7 +77,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             Text('Explore Events', style: theme.textTheme.headlineLarge),
             const SizedBox(height: AppSpacing.xxs),
             Text(
-              'Search, filter by club, date, or registration status, and discover upcoming campus events.',
+              'Search, filter by category, club, date, or registration status, and discover upcoming campus events.',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -80,7 +85,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               constraints: const BoxConstraints(maxWidth: 520),
               child: AppSearchBar(
                 controller: _localSearchController,
-                hintText: 'Search by title, club, venue, or tag...',
+                hintText: 'Search by title, club, venue, or category...',
                 onChanged: (value) =>
                     ref.read(searchQueryProvider.notifier).update(value),
                 onClear: () => ref.read(searchQueryProvider.notifier).clear(),
@@ -114,13 +119,13 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 children: [
                   _FilterDropdown<String?>(
                     label: 'Club',
-                    value: selectedClubId,
+                    value: effectiveClubId,
                     items: [
                       const DropdownMenuItem<String?>(
                         value: null,
                         child: Text('All Clubs'),
                       ),
-                      ...MockCampusData.clubs.map(
+                      ...clubs.map(
                         (club) => DropdownMenuItem<String?>(
                           value: club.id,
                           child: Text(club.name),
@@ -192,75 +197,107 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Text(
-                  '${events.length} event${events.length == 1 ? '' : 's'} found',
-                  style: theme.textTheme.labelMedium,
+            eventsAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+                child: AppLoadingIndicator(
+                  message: 'Loading published events...',
                 ),
-                if (hasActiveFilters) ...[
-                  const SizedBox(width: AppSpacing.sm),
-                  TextButton(
-                    onPressed: _resetAllFilters,
-                    child: const Text('Reset filters'),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (events.isEmpty)
-              AppCard(
-                child: Column(
+              ),
+              error: (error, _) => AppErrorWidget(
+                title: 'Unable to load events',
+                message: error.toString(),
+                onRetry: () => ref.invalidate(publishedEventsProvider),
+              ),
+              data: (events) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.search_off_rounded,
-                      size: 32,
-                      color: AppColors.textMuted,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'No matching campus events',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      'Try clearing your search query or adjusting the club, date, and registration filters.',
-                      style: theme.textTheme.bodyMedium,
+                    Row(
+                      children: [
+                        Text(
+                          '${events.length} event${events.length == 1 ? '' : 's'} found',
+                          style: theme.textTheme.labelMedium,
+                        ),
+                        if (hasActiveFilters) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          TextButton(
+                            onPressed: _resetAllFilters,
+                            child: const Text('Reset filters'),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    AppButton(
-                      label: 'Reset All Filters',
-                      variant: AppButtonVariant.outline,
-                      size: AppButtonSize.sm,
-                      onPressed: _resetAllFilters,
-                    ),
+                    if (events.isEmpty)
+                      AppCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.search_off_rounded,
+                              size: 32,
+                              color: AppColors.textMuted,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              hasActiveFilters
+                                  ? 'No matching campus events'
+                                  : 'No published events available',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: AppSpacing.xxs),
+                            Text(
+                              hasActiveFilters
+                                  ? 'Try clearing your search query or adjusting the club, date, and registration filters.'
+                                  : 'Check back soon for newly published Bennett University events.',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            if (hasActiveFilters) ...[
+                              const SizedBox(height: AppSpacing.md),
+                              AppButton(
+                                label: 'Reset All Filters',
+                                variant: AppButtonVariant.outline,
+                                size: AppButtonSize.sm,
+                                onPressed: _resetAllFilters,
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
+                    else
+                      ResponsiveCardGrid(
+                        children: events.map((event) {
+                          final isRegistered = registeredIds.contains(event.id);
+                          return EventCard(
+                            event: event,
+                            isRegistered: isRegistered,
+                            onTap: () =>
+                                context.go(AppRoutes.eventDetail(event.id)),
+                            onActionTap: () {
+                              final activeReg = ref.read(
+                                activeRegistrationForEventProvider(event.id),
+                              );
+                              if (activeReg != null) {
+                                context.go(
+                                  AppRoutes.ticketDetail(activeReg.id),
+                                );
+                              } else if (event.isFull ||
+                                  event.isRegistrationClosed) {
+                                context.go(AppRoutes.eventDetail(event.id));
+                              } else {
+                                context.go(
+                                  AppRoutes.eventRegistration(event.id),
+                                );
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
                   ],
-                ),
-              )
-            else
-              ResponsiveCardGrid(
-                children: events.map((event) {
-                  final isRegistered = registeredIds.contains(event.id);
-                  return EventCard(
-                    event: event,
-                    isRegistered: isRegistered,
-                    onTap: () => context.go(AppRoutes.eventDetail(event.id)),
-                    onActionTap: () {
-                      final activeReg = ref.read(
-                        activeRegistrationForEventProvider(event.id),
-                      );
-                      if (activeReg != null) {
-                        context.go(AppRoutes.ticketDetail(activeReg.id));
-                      } else if (event.isFull || event.isRegistrationClosed) {
-                        context.go(AppRoutes.eventDetail(event.id));
-                      } else {
-                        context.go(AppRoutes.eventRegistration(event.id));
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
+                );
+              },
+            ),
           ],
         ),
       ),

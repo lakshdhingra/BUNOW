@@ -7,28 +7,27 @@ import 'package:bennett_campus/core/theme/app_spacing.dart';
 import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
 import 'package:bennett_campus/shared/widgets/widgets.dart';
 
-/// Responsive dark-mode login screen with Bennett University branding.
+/// Responsive dark-mode login screen with Email/Password Supabase Auth.
 class LoginPage extends ConsumerWidget {
   const LoginPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authControllerProvider);
     final screenType = DeviceScreenType.of(context);
     final isDesktop = screenType == DeviceScreenType.desktop;
 
     return Scaffold(
       body: SafeArea(
         child: isDesktop
-            ? Row(
+            ? const Row(
                 children: [
-                  const Expanded(flex: 11, child: _EditorialShowcasePanel()),
+                  Expanded(flex: 11, child: _EditorialShowcasePanel()),
                   Expanded(
                     flex: 9,
                     child: Center(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(AppSpacing.xxl),
-                        child: _AuthCardSection(isSigningIn: authState.isSigningIn),
+                        padding: EdgeInsets.all(AppSpacing.xxl),
+                        child: _AuthCardSection(),
                       ),
                     ),
                   ),
@@ -42,12 +41,12 @@ class LoginPage extends ConsumerWidget {
                         : AppSpacing.md,
                     vertical: AppSpacing.lg,
                   ),
-                  child: Column(
+                  child: const Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const _CompactBrandHeader(),
-                      const SizedBox(height: AppSpacing.xl),
-                      _AuthCardSection(isSigningIn: authState.isSigningIn),
+                      _CompactBrandHeader(),
+                      SizedBox(height: AppSpacing.xl),
+                      _AuthCardSection(),
                     ],
                   ),
                 ),
@@ -271,145 +270,259 @@ class _BrandWordmark extends StatelessWidget {
   }
 }
 
-class _AuthCardSection extends ConsumerWidget {
-  const _AuthCardSection({required this.isSigningIn});
-
-  final bool isSigningIn;
+class _AuthCardSection extends ConsumerStatefulWidget {
+  const _AuthCardSection();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AuthCardSection> createState() => _AuthCardSectionState();
+}
+
+class _AuthCardSectionState extends ConsumerState<_AuthCardSection> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  bool _isSignUp = false;
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final notifier = ref.read(authControllerProvider.notifier);
+    if (_isSignUp) {
+      await notifier.signUpWithEmail(
+        fullName: _nameController.text,
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+    } else {
+      await notifier.signInWithEmail(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authState = ref.watch(authControllerProvider);
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 440),
       child: AppCard(
         padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Welcome to BENNETT',
-              style: theme.textTheme.headlineMedium,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Sign in to explore campus events, register for workshops, and view your digital passes.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: isSigningIn
-                    ? null
-                    : () => ref
-                          .read(authControllerProvider.notifier)
-                          .signInWithMicrosoft(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.textPrimary,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: AppRadii.borderMd,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _isSignUp ? 'Create BENNETT Account' : 'Welcome to BENNETT',
+                style: theme.textTheme.headlineMedium,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                _isSignUp
+                    ? 'Register with your campus email and password to access events and passes.'
+                    : 'Sign in with your Bennett account to explore campus events and manage registrations.',
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              if (authState.errorMessage != null) ...[
+                _AuthNoticeBanner(
+                  message: authState.errorMessage!,
+                  color: AppColors.error,
+                  icon: Icons.error_outline_rounded,
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              if (authState.infoMessage != null) ...[
+                _AuthNoticeBanner(
+                  message: authState.infoMessage!,
+                  color: AppColors.success,
+                  icon: Icons.check_circle_outline_rounded,
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              if (_isSignUp) ...[
+                AppTextField(
+                  controller: _nameController,
+                  label: 'Full Name',
+                  hintText: 'Aarav Sharma',
+                  textInputAction: TextInputAction.next,
+                  prefixIcon: const Icon(
+                    Icons.person_outline_rounded,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
+                  validator: (value) {
+                    if (_isSignUp && (value == null || value.trim().isEmpty)) {
+                      return 'Please enter your full name.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              AppTextField(
+                controller: _emailController,
+                label: 'Email',
+                hintText: 'student@bennett.edu.in',
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                prefixIcon: const Icon(
+                  Icons.mail_outline_rounded,
+                  size: 18,
+                  color: AppColors.textMuted,
+                ),
+                validator: (value) {
+                  final trimmed = value?.trim() ?? '';
+                  if (trimmed.isEmpty || !trimmed.contains('@')) {
+                    return 'Enter a valid email address.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              AppTextField(
+                controller: _passwordController,
+                label: 'Password',
+                hintText: 'Enter your password',
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _submit(),
+                prefixIcon: const Icon(
+                  Icons.lock_outline_rounded,
+                  size: 18,
+                  color: AppColors.textMuted,
+                ),
+                suffixIcon: IconButton(
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    size: 18,
+                    color: AppColors.textMuted,
                   ),
                 ),
-                child: isSigningIn
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.textPrimary,
-                          ),
-                        ),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                validator: (value) {
+                  if (value == null || value.length < 6) {
+                    return 'Password must be at least 6 characters.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              AppButton(
+                label: _isSignUp ? 'Create Account' : 'Sign In',
+                isLoading: authState.isSubmitting,
+                fullWidth: true,
+                size: AppButtonSize.lg,
+                onPressed: _submit,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Center(
+                child: TextButton(
+                  onPressed: authState.isSubmitting
+                      ? null
+                      : () => setState(() => _isSignUp = !_isSignUp),
+                  child: Text(
+                    _isSignUp
+                        ? 'Already have an account? Sign in'
+                        : 'New here? Create an account',
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: AppRadii.borderMd,
+                  border: Border.all(color: AppColors.borderSubtle),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.verified_user_outlined,
+                      size: 18,
+                      color: AppColors.secondary,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const _MicrosoftMark(),
-                          const SizedBox(width: AppSpacing.sm),
-                          Flexible(
-                            child: Text(
-                              'Continue with Microsoft',
-                              style: theme.textTheme.labelLarge,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          Text(
+                            'University-only access',
+                            style: theme.textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Email/password Supabase Auth is active. Bennett Microsoft SSO will be connected in a future stage.',
+                            style: theme.textTheme.bodySmall,
                           ),
                         ],
                       ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: AppRadii.borderMd,
-                border: Border.all(color: AppColors.borderSubtle),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.verified_user_outlined,
-                    size: 18,
-                    color: AppColors.secondary,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'University-only access',
-                          style: theme.textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Restricted to official Bennett University Microsoft accounts (@bennett.edu.in). Mock preview active for Stage 1.',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _MicrosoftMark extends StatelessWidget {
-  const _MicrosoftMark();
+class _AuthNoticeBanner extends StatelessWidget {
+  const _AuthNoticeBanner({
+    required this.message,
+    required this.color,
+    required this.icon,
+  });
+
+  final String message;
+  final Color color;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    const gap = 2.0;
-    const tile = 7.0;
-    return SizedBox(
-      width: tile * 2 + gap,
-      height: tile * 2 + gap,
-      child: Column(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm + 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: AppRadii.borderMd,
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(width: tile, height: tile, color: const Color(0xFFF25022)),
-              const SizedBox(width: gap),
-              Container(width: tile, height: tile, color: const Color(0xFF7FBA00)),
-            ],
-          ),
-          const SizedBox(height: gap),
-          Row(
-            children: [
-              Container(width: tile, height: tile, color: const Color(0xFF00A4EF)),
-              const SizedBox(width: gap),
-              Container(width: tile, height: tile, color: const Color(0xFFFFB900)),
-            ],
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
           ),
         ],
       ),

@@ -6,7 +6,6 @@ import 'package:bennett_campus/core/router/app_routes.dart';
 import 'package:bennett_campus/core/theme/app_colors.dart';
 import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
-import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/event_card.dart';
@@ -14,7 +13,7 @@ import 'package:bennett_campus/features/student_portal/presentation/widgets/medi
 import 'package:bennett_campus/features/student_portal/presentation/widgets/section_header.dart';
 import 'package:bennett_campus/shared/widgets/widgets.dart';
 
-/// Detailed event view with agenda, speakers, registration card, gallery, and related events.
+/// Detailed event view connected to Supabase `events`, `clubs`, and `event_media`.
 class EventDetailPage extends ConsumerWidget {
   const EventDetailPage({super.key, required this.eventId});
 
@@ -22,120 +21,129 @@ class EventDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final event = MockCampusData.events
-        .where((e) => e.id == eventId)
-        .firstOrNull;
-
-    if (event == null) {
-      return Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: AppErrorWidget(
-          title: 'Event not found',
-          message: 'We could not find an event matching "$eventId".',
-          retryLabel: 'Back to Explore',
-          onRetry: () => context.go(AppRoutes.explore),
-        ),
-      );
-    }
-
-    final club = MockCampusData.clubs
-        .where((c) => c.id == event.clubId)
-        .firstOrNull;
+    final eventAsync = ref.watch(eventDetailProvider(eventId));
+    final allPublished =
+        ref.watch(publishedEventsProvider).value ?? const <CampusEvent>[];
+    final clubs = ref.watch(activeClubsProvider).value ?? const <CampusClub>[];
     final registeredIds = ref.watch(registeredEventIdsProvider);
-    final isRegistered = registeredIds.contains(event.id);
     final isDesktop =
         DeviceScreenType.of(context) == DeviceScreenType.desktop;
 
-    final relatedEvents = MockCampusData.events
-        .where(
-          (other) =>
-              other.id != event.id &&
-              (other.category == event.category || other.clubId == event.clubId),
-        )
-        .take(3)
-        .toList();
-
-    final fallbackRelated = relatedEvents.isNotEmpty
-        ? relatedEvents
-        : MockCampusData.events
-              .where((other) => other.id != event.id)
-              .take(3)
-              .toList();
-
-    return SingleChildScrollView(
-      child: ResponsiveContainer(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _BackBar(
-              label: 'Back to Explore',
-              onPressed: () => context.go(AppRoutes.explore),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _EventHeroBanner(event: event, isRegistered: isRegistered),
-            const SizedBox(height: AppSpacing.xl),
-            if (isDesktop)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 7,
-                    child: _EventMainColumn(event: event, club: club),
-                  ),
-                  const SizedBox(width: AppSpacing.xl),
-                  Expanded(
-                    flex: 4,
-                    child: _RegistrationInfoCard(
-                      event: event,
-                      club: club,
-                      isRegistered: isRegistered,
-                      onRegisterTap: () =>
-                          _toggleRegistration(context, ref, event),
-                    ),
-                  ),
-                ],
-              )
-            else ...[
-              _RegistrationInfoCard(
-                event: event,
-                club: club,
-                isRegistered: isRegistered,
-                onRegisterTap: () => _toggleRegistration(context, ref, event),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              _EventMainColumn(event: event, club: club),
-            ],
-            const SizedBox(height: AppSpacing.xxl),
-            SectionHeader(
-              title: 'Related Events',
-              subtitle: 'More campus activities you might enjoy',
-              actionLabel: 'Explore all',
-              onActionTap: () => context.go(AppRoutes.explore),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            ResponsiveCardGrid(
-              children: fallbackRelated.map((item) {
-                final itemRegistered = registeredIds.contains(item.id);
-                return EventCard(
-                  event: item,
-                  isRegistered: itemRegistered,
-                  onTap: () => context.go(AppRoutes.eventDetail(item.id)),
-                  onActionTap: () => _openRegistrationOrTicket(context, ref, item),
-                );
-              }).toList(),
-            ),
-          ],
+    return eventAsync.when(
+      loading: () => const AppLoadingIndicator(message: 'Loading event details...'),
+      error: (error, _) => Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: AppErrorWidget(
+          title: 'Unable to load event',
+          message: error.toString(),
+          onRetry: () => ref.invalidate(eventDetailProvider(eventId)),
         ),
       ),
-    );
-  }
+      data: (event) {
+        if (event == null) {
+          return Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: AppErrorWidget(
+              title: 'Event not found',
+              message: 'We could not find an event matching "$eventId".',
+              retryLabel: 'Back to Explore',
+              onRetry: () => context.go(AppRoutes.explore),
+            ),
+          );
+        }
 
-  void _toggleRegistration(
-    BuildContext context,
-    WidgetRef ref,
-    CampusEvent event,
-  ) {
-    _openRegistrationOrTicket(context, ref, event);
+        final club = clubs.where((c) => c.id == event.clubId).firstOrNull;
+        final isRegistered = registeredIds.contains(event.id);
+
+        final relatedEvents = allPublished
+            .where(
+              (other) =>
+                  other.id != event.id &&
+                  (other.category == event.category ||
+                      other.clubId == event.clubId),
+            )
+            .take(3)
+            .toList();
+
+        final fallbackRelated = relatedEvents.isNotEmpty
+            ? relatedEvents
+            : allPublished
+                  .where((other) => other.id != event.id)
+                  .take(3)
+                  .toList();
+
+        return SingleChildScrollView(
+          child: ResponsiveContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _BackBar(
+                  label: 'Back to Explore',
+                  onPressed: () => context.go(AppRoutes.explore),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _EventHeroBanner(event: event, isRegistered: isRegistered),
+                const SizedBox(height: AppSpacing.xl),
+                if (isDesktop)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 7,
+                        child: _EventMainColumn(event: event, club: club),
+                      ),
+                      const SizedBox(width: AppSpacing.xl),
+                      Expanded(
+                        flex: 4,
+                        child: _RegistrationInfoCard(
+                          event: event,
+                          club: club,
+                          isRegistered: isRegistered,
+                          onRegisterTap: () =>
+                              _openRegistrationOrTicket(context, ref, event),
+                        ),
+                      ),
+                    ],
+                  )
+                else ...[
+                  _RegistrationInfoCard(
+                    event: event,
+                    club: club,
+                    isRegistered: isRegistered,
+                    onRegisterTap: () =>
+                        _openRegistrationOrTicket(context, ref, event),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  _EventMainColumn(event: event, club: club),
+                ],
+                if (fallbackRelated.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxl),
+                  SectionHeader(
+                    title: 'Related Events',
+                    subtitle: 'More campus activities you might enjoy',
+                    actionLabel: 'Explore all',
+                    onActionTap: () => context.go(AppRoutes.explore),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ResponsiveCardGrid(
+                    children: fallbackRelated.map((item) {
+                      final itemRegistered = registeredIds.contains(item.id);
+                      return EventCard(
+                        event: item,
+                        isRegistered: itemRegistered,
+                        onTap: () => context.go(AppRoutes.eventDetail(item.id)),
+                        onActionTap: () =>
+                            _openRegistrationOrTicket(context, ref, item),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _openRegistrationOrTicket(
@@ -146,10 +154,6 @@ class EventDetailPage extends ConsumerWidget {
     final activeReg = ref.read(activeRegistrationForEventProvider(event.id));
     if (activeReg != null) {
       context.go(AppRoutes.ticketDetail(activeReg.id));
-      return;
-    }
-    if (event.isFull || event.isRegistrationClosed) {
-      context.go(AppRoutes.eventRegistration(event.id));
       return;
     }
     context.go(AppRoutes.eventRegistration(event.id));

@@ -1,3 +1,5 @@
+import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
+
 /// Registration workflow modes supported by campus events.
 enum RegistrationMode {
   basic('One-Click Basic'),
@@ -82,6 +84,7 @@ class EventRegistration {
     required this.registeredAt,
     this.cancelledAt,
     this.answers = const {},
+    this.event,
   });
 
   final String id;
@@ -95,10 +98,12 @@ class EventRegistration {
   final DateTime registeredAt;
   final DateTime? cancelledAt;
   final Map<String, dynamic> answers;
+  final CampusEvent? event;
 
   EventRegistration copyWith({
     RegistrationStatus? status,
     DateTime? cancelledAt,
+    CampusEvent? event,
   }) {
     return EventRegistration(
       id: id,
@@ -112,6 +117,7 @@ class EventRegistration {
       registeredAt: registeredAt,
       cancelledAt: cancelledAt ?? this.cancelledAt,
       answers: answers,
+      event: event ?? this.event,
     );
   }
 }

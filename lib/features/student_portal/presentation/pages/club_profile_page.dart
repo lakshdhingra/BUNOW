@@ -6,7 +6,6 @@ import 'package:bennett_campus/core/theme/app_colors.dart';
 import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
 import 'package:bennett_campus/core/utils/external_links.dart';
-import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
 import 'package:bennett_campus/features/student_portal/presentation/widgets/category_chip.dart';
@@ -15,7 +14,7 @@ import 'package:bennett_campus/features/student_portal/presentation/widgets/medi
 import 'package:bennett_campus/features/student_portal/presentation/widgets/section_header.dart';
 import 'package:bennett_campus/shared/widgets/widgets.dart';
 
-/// Individual Bennett University club profile page.
+/// Individual Bennett University club profile page connected to Supabase.
 class ClubProfilePage extends ConsumerWidget {
   const ClubProfilePage({super.key, required this.clubId});
 
@@ -24,188 +23,226 @@ class ClubProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final club = MockCampusData.clubs
-        .where((c) => c.id == clubId)
-        .firstOrNull;
+    final detailAsync = ref.watch(clubDetailProvider(clubId));
+    final registeredIds = ref.watch(registeredEventIdsProvider);
 
-    if (club == null) {
-      return Padding(
+    return detailAsync.when(
+      loading: () => const AppLoadingIndicator(message: 'Loading club profile...'),
+      error: (error, _) => Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: AppErrorWidget(
-          title: 'Club not found',
-          message: 'We could not find a club matching "$clubId".',
-          retryLabel: 'Back to Clubs',
-          onRetry: () => context.go(AppRoutes.clubs),
+          title: 'Unable to load club profile',
+          message: error.toString(),
+          onRetry: () => ref.invalidate(clubDetailProvider(clubId)),
         ),
-      );
-    }
+      ),
+      data: (detail) {
+        final club = detail.club;
+        if (club == null) {
+          return Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: AppErrorWidget(
+              title: 'Club not found',
+              message: 'We could not find a club matching "$clubId".',
+              retryLabel: 'Back to Clubs',
+              onRetry: () => context.go(AppRoutes.clubs),
+            ),
+          );
+        }
 
-    final registeredIds = ref.watch(registeredEventIdsProvider);
-    final upcomingEvents = MockCampusData.events
-        .where((event) => event.clubId == club.id)
-        .toList();
+        final upcomingEvents = detail.events
+            .where((event) => !event.isCompleted)
+            .toList();
+        final completedEvents = detail.events
+            .where((event) => event.isCompleted)
+            .toList();
 
-    return SingleChildScrollView(
-      child: ResponsiveContainer(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextButton.icon(
-              onPressed: () => context.go(AppRoutes.clubs),
-              icon: const Icon(Icons.arrow_back_rounded, size: 18),
-              label: const Text('Back to Clubs Directory'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _ClubBrandingHeader(club: club),
-            const SizedBox(height: AppSpacing.xl),
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('About ${club.name}', style: theme.textTheme.headlineSmall),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(club.about, style: theme.textTheme.bodyMedium),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xxl),
-            SectionHeader(
-              title: 'Upcoming Events',
-              subtitle: 'Active sessions and registrations by ${club.shortCode}',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (upcomingEvents.isEmpty)
-              AppCard(
-                child: Text(
-                  'No upcoming events scheduled right now. Check back soon.',
-                  style: theme.textTheme.bodyMedium,
+        return SingleChildScrollView(
+          child: ResponsiveContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextButton.icon(
+                  onPressed: () => context.go(AppRoutes.clubs),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  label: const Text('Back to Clubs Directory'),
                 ),
-              )
-            else
-              ResponsiveCardGrid(
-                children: upcomingEvents.map((event) {
-                  final isRegistered = registeredIds.contains(event.id);
-                  return EventCard(
-                    event: event,
-                    isRegistered: isRegistered,
-                    onTap: () => context.go(AppRoutes.eventDetail(event.id)),
-                    onActionTap: () {
-                      final activeReg = ref.read(
-                        activeRegistrationForEventProvider(event.id),
-                      );
-                      if (activeReg != null) {
-                        context.go(AppRoutes.ticketDetail(activeReg.id));
-                      } else if (event.isFull || event.isRegistrationClosed) {
-                        context.go(AppRoutes.eventDetail(event.id));
-                      } else {
-                        context.go(AppRoutes.eventRegistration(event.id));
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
-            const SizedBox(height: AppSpacing.xxl),
-            const SectionHeader(
-              title: 'Previous Events',
-              subtitle: 'Past campus initiatives and milestones',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (club.previousEvents.isEmpty)
-              AppCard(
-                child: Text(
-                  'Previous event archive will appear here.',
-                  style: theme.textTheme.bodyMedium,
-                ),
-              )
-            else
-              ResponsiveCardGrid(
-                children: club.previousEvents.map((prev) {
-                  return AppCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CampusNetworkImage(
-                          imageUrl: prev.coverUrl,
-                          height: 148,
-                          width: double.infinity,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(AppRadii.lg - 1),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${prev.dateLabel} · ${prev.attendeesLabel}',
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: AppColors.secondary,
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(prev.title, style: theme.textTheme.titleMedium),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(prev.summary, style: theme.textTheme.bodySmall),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            const SizedBox(height: AppSpacing.xxl),
-            _ClubMediaLibrarySection(club: club),
-            const SizedBox(height: AppSpacing.xxl),
-            const SectionHeader(
-              title: 'Club Leadership',
-              subtitle: 'Authorized student coordinators & chapter leads',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            ResponsiveCardGrid(
-              children: club.leadership.map((leader) {
-                return AppCard(
-                  child: Row(
+                const SizedBox(height: AppSpacing.md),
+                _ClubBrandingHeader(club: club),
+                const SizedBox(height: AppSpacing.xl),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 22,
-                        backgroundColor: AppColors.primaryMuted,
-                        child: Text(
-                          leader.initials,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: AppColors.primaryHover,
-                          ),
-                        ),
+                      Text(
+                        'About ${club.name}',
+                        style: theme.textTheme.headlineSmall,
                       ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(leader.name, style: theme.textTheme.titleSmall),
-                            Text(
-                              leader.role,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: AppColors.secondary,
-                              ),
-                            ),
-                            Text(
-                              leader.program,
-                              style: theme.textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        club.about.isNotEmpty
+                            ? club.about
+                            : 'Official Bennett University student organization.',
+                        style: theme.textTheme.bodyMedium,
                       ),
                     ],
                   ),
-                );
-              }).toList(),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                SectionHeader(
+                  title: 'Upcoming Events',
+                  subtitle: 'Active sessions and registrations by ${club.name}',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                if (upcomingEvents.isEmpty)
+                  AppCard(
+                    child: Text(
+                      'No upcoming events scheduled right now. Check back soon.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  )
+                else
+                  ResponsiveCardGrid(
+                    children: upcomingEvents.map((event) {
+                      final isRegistered = registeredIds.contains(event.id);
+                      return EventCard(
+                        event: event,
+                        isRegistered: isRegistered,
+                        onTap: () => context.go(AppRoutes.eventDetail(event.id)),
+                        onActionTap: () {
+                          final activeReg = ref.read(
+                            activeRegistrationForEventProvider(event.id),
+                          );
+                          if (activeReg != null) {
+                            context.go(AppRoutes.ticketDetail(activeReg.id));
+                          } else if (event.isFull ||
+                              event.isRegistrationClosed) {
+                            context.go(AppRoutes.eventDetail(event.id));
+                          } else {
+                            context.go(AppRoutes.eventRegistration(event.id));
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                if (completedEvents.isNotEmpty ||
+                    club.previousEvents.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxl),
+                  const SectionHeader(
+                    title: 'Previous Events',
+                    subtitle: 'Past campus initiatives and milestones',
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ResponsiveCardGrid(
+                    children: [
+                      ...completedEvents.map((e) {
+                        return EventCard(
+                          event: e,
+                          isRegistered: registeredIds.contains(e.id),
+                          onTap: () => context.go(AppRoutes.eventDetail(e.id)),
+                        );
+                      }),
+                      ...club.previousEvents.map((prev) {
+                        return AppCard(
+                          padding: EdgeInsets.zero,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CampusNetworkImage(
+                                imageUrl: prev.coverUrl,
+                                height: 148,
+                                width: double.infinity,
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(AppRadii.lg - 1),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(AppSpacing.md),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${prev.dateLabel} · ${prev.attendeesLabel}',
+                                      style: theme.textTheme.labelMedium
+                                          ?.copyWith(color: AppColors.secondary),
+                                    ),
+                                    const SizedBox(height: AppSpacing.xs),
+                                    Text(
+                                      prev.title,
+                                      style: theme.textTheme.titleMedium,
+                                    ),
+                                    const SizedBox(height: AppSpacing.xs),
+                                    Text(
+                                      prev.summary,
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.xxl),
+                _ClubMediaLibrarySection(club: club, events: detail.events),
+                if (club.leadership.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxl),
+                  const SectionHeader(
+                    title: 'Club Leadership',
+                    subtitle: 'Authorized student coordinators & chapter leads',
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ResponsiveCardGrid(
+                    children: club.leadership.map((leader) {
+                      return AppCard(
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 22,
+                              backgroundColor: AppColors.primaryMuted,
+                              child: Text(
+                                leader.initials,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  color: AppColors.primaryHover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    leader.name,
+                                    style: theme.textTheme.titleSmall,
+                                  ),
+                                  Text(
+                                    leader.role,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: AppColors.secondary,
+                                    ),
+                                  ),
+                                  Text(
+                                    leader.program,
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -248,12 +285,19 @@ class _ClubBrandingHeader extends StatelessWidget {
                     borderRadius: AppRadii.borderLg,
                     border: Border.all(color: AppColors.primary, width: 2),
                   ),
-                  child: Text(
-                    club.shortCode,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  child: (club.logoUrl != null && club.logoUrl!.isNotEmpty)
+                      ? CampusNetworkImage(
+                          imageUrl: club.logoUrl!,
+                          width: 64,
+                          height: 64,
+                          borderRadius: AppRadii.borderMd,
+                        )
+                      : Text(
+                          club.shortCode,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -303,7 +347,7 @@ class _ClubBrandingHeader extends StatelessWidget {
                     runSpacing: AppSpacing.sm,
                     children: club.socialLinks.map((link) {
                       return AppButton(
-                        label: '${link.platform} · ${link.handle}',
+                        label: link.platform,
                         variant: AppButtonVariant.outline,
                         size: AppButtonSize.sm,
                         leadingIcon: Icons.open_in_new_rounded,
@@ -325,11 +369,14 @@ class _ClubBrandingHeader extends StatelessWidget {
   }
 }
 
-
 class _ClubMediaLibrarySection extends StatefulWidget {
-  const _ClubMediaLibrarySection({required this.club});
+  const _ClubMediaLibrarySection({
+    required this.club,
+    required this.events,
+  });
 
   final CampusClub club;
+  final List<CampusEvent> events;
 
   @override
   State<_ClubMediaLibrarySection> createState() =>
@@ -342,10 +389,6 @@ class _ClubMediaLibrarySectionState extends State<_ClubMediaLibrarySection> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hostedEvents = MockCampusData.events
-        .where((e) => e.clubId == widget.club.id)
-        .toList();
-
     final allMedia = <MediaItem>[
       ...widget.club.photos,
       ...widget.club.videos.map(
@@ -359,7 +402,7 @@ class _ClubMediaLibrarySectionState extends State<_ClubMediaLibrarySection> {
           durationLabel: v.durationLabel,
         ),
       ),
-      for (final e in hostedEvents) ...[
+      for (final e in widget.events) ...[
         ...e.mediaGallery,
         ...e.promoVideos,
         ...e.recapMedia,

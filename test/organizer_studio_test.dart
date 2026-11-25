@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bennett_campus/app.dart';
+import 'package:bennett_campus/features/auth/presentation/providers/auth_provider.dart';
+import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
+
+class _TestAuthController extends AuthController {
+  @override
+  AuthState build() => const AuthState(user: MockCampusData.currentStudent);
+}
 
 void main() {
   testWidgets(
@@ -11,12 +18,14 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
-      await tester.pumpWidget(const ProviderScope(child: BennettApp()));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Continue with Microsoft'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 450));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authControllerProvider.overrideWith(_TestAuthController.new),
+          ],
+          child: const BennettApp(),
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Open Organizer Studio from Student Portal sidebar.

@@ -6,7 +6,6 @@ import 'package:bennett_campus/core/router/app_routes.dart';
 import 'package:bennett_campus/core/theme/app_colors.dart';
 import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
-import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/registration_models.dart';
 import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
@@ -45,9 +44,11 @@ class RegistrationTicketPage extends ConsumerWidget {
       );
     }
 
-    final event = MockCampusData.events
-        .where((e) => e.id == registration.eventId)
-        .firstOrNull;
+    final event =
+        registration.event ??
+        (ref.watch(publishedEventsProvider).value ?? const <CampusEvent>[])
+            .where((e) => e.id == registration.eventId)
+            .firstOrNull;
     final isDesktop = DeviceScreenType.of(context) == DeviceScreenType.desktop;
 
     return SingleChildScrollView(

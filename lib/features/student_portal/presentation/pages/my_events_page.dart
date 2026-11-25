@@ -6,7 +6,6 @@ import 'package:bennett_campus/core/router/app_routes.dart';
 import 'package:bennett_campus/core/theme/app_colors.dart';
 import 'package:bennett_campus/core/theme/app_radii.dart';
 import 'package:bennett_campus/core/theme/app_spacing.dart';
-import 'package:bennett_campus/features/student_portal/data/mock/mock_campus_data.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/campus_models.dart';
 import 'package:bennett_campus/features/student_portal/domain/models/registration_models.dart';
 import 'package:bennett_campus/features/student_portal/presentation/providers/student_portal_providers.dart';
@@ -79,6 +78,9 @@ class _MyEventsPageState extends ConsumerState<MyEventsPage> {
                 onRetry: () => ref.invalidate(registrationsControllerProvider),
               ),
               data: (registrations) {
+                final publishedEvents =
+                    ref.watch(publishedEventsProvider).value ??
+                    const <CampusEvent>[];
                 final filtered = switch (_selectedTab) {
                   _MyEventsTab.upcoming => registrations
                       .where((r) => r.status == RegistrationStatus.confirmed)
@@ -124,9 +126,11 @@ class _MyEventsPageState extends ConsumerState<MyEventsPage> {
 
                 return Column(
                   children: filtered.map((reg) {
-                    final event = MockCampusData.events
-                        .where((e) => e.id == reg.eventId)
-                        .firstOrNull;
+                    final event =
+                        reg.event ??
+                        publishedEvents
+                            .where((e) => e.id == reg.eventId)
+                            .firstOrNull;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.md),
                       child: _RegistrationRecordCard(
